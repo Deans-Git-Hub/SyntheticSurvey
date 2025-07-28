@@ -50,8 +50,8 @@ if "persona_fields" not in st.session_state:
     ]
 if "questions" not in st.session_state:
     st.session_state.questions = [
-        {"key":"alignment","system":"Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"Is Pepsi easily accessible?","options":["Yes","No"]},
-        {"key":"interest","system":"Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"At what time do you drink soda?","options":["Morning", "Afternoon", "Evening"]},
+        {"key":"accessibility","system":"Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"Is Pepsi easily accessible?","options":["Yes","No"]},
+        {"key":"interest","system":"Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"At what time would you drink soda?","options":["Morning", "Afternoon", "Evening"]},
         {"key":"timeline","system":"Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"How often do you drink soda?","options":["Frequently","Occasionally","Rarely","Never"]},
     ]
 
@@ -62,7 +62,7 @@ with tab_config:
     # Persona attributes
     st.header("Persona Attributes")
     for idx, field in enumerate(st.session_state.persona_fields):
-        cols = st.columns([4, 2, 1])  # wider first column for alignment
+        cols = st.columns([4, 2, 1])
         name = cols[0].text_input("Field name", field["name"], key=f"pf_name_{idx}")
         typ  = cols[1].selectbox("Type", ["string","integer"],
                                  index=["string","integer"].index(field["type"]),
@@ -147,7 +147,7 @@ def run_survey(personas, questions, segment):
         lines = [f"{f['name'].capitalize()}: {p.get(f['name'], '')}" for f in st.session_state.persona_fields]
         if segment:
             lines.append(f"Segment: {segment}")
-        base = {"role":"system","content":"You are this persona:\n"+ "\n".join(lines)}
+        base = {"role":"system","content":"You are this persona:\n" + "\n".join(lines)}
         for q in questions:
             msg = call_chat([base, {"role":"system","content":q["system"]}, {"role":"user","content":q["user"]}])
             scores[q["key"]].append(parse_choice(getattr(msg,"content",""), q["options"]))
@@ -166,6 +166,7 @@ with tab_results:
         st.title("Synthetic Survey Results")
         total = len(personas)
 
+        # Per-question charts & tables
         for q in questions:
             dist = Counter(scores[q["key"]])
             df   = pd.DataFrame({
@@ -177,9 +178,11 @@ with tab_results:
             chart = (
                 alt.Chart(df)
                    .mark_bar()
-                   .encode(x=alt.X("Option:N", sort=q["options"]),
-                           y="Count:Q",
-                           tooltip=["Option","Count","Percent"])
+                   .encode(
+                       x=alt.X("Option:N", sort=q["options"]),
+                       y="Count:Q",
+                       tooltip=["Option","Count","Percent"]
+                   )
                    .properties(width=600, height=300)
             )
             st.altair_chart(chart, use_container_width=True)
@@ -191,3 +194,68 @@ with tab_results:
         st.header("Persona Intros")
         for p in personas:
             st.markdown(f"**{p.get('name','')}**: {p.get('intro','')}")
+
+        # —— 7) Key Findings Summary —— #
+        st.header("Key Findings Summary")
+
+        # — Compute stats for each question
+        stats = {}
+        total = len(personas)
+        for q in questions:
+            key     = q["key"]
+            opts    = q["options"]
+            dist    = Counter(scores[key])
+            counts  = {o: dist.get(o, 0) for o in opts}
+            pct     = {o: round(counts[o] / total * 100, 1) for o in opts}
+            stats[key] = {"counts": counts, "percentages": pct}
+
+        # — Serialize personas & stats
+        personas_json = json.dumps(personas, indent=2)
+        stats_json    = json.dumps(stats, indent=2)
+
+        # — Build the chat prompt
+        find_prompt = [
+            {
+                "role": "system",
+                "content": (
+                    f"Synthetic Survey Engine results for industry '{industry}'"
+                    f"{' (segment: ' + segment + ')' if segment else ''}.\n\n"
+                    f"Metrics:\n{stats_json}\n\n"
+                    f"Persona profiles:\n{personas_json}"
+                )
+            },
+            {
+                "role": "user",
+                "content": (
+                    "Based on these metrics and persona profiles, write several short paragraphs "
+                    "highlighting overall response trends and which persona characteristics "
+                    "most strongly correlate with particular answer patterns."
+                )
+            }
+        ]
+
+        # — Declare the function schema
+        find_fn = {
+            "name": "generate_findings",
+            "description": "Return an object with a 'summary' field containing multiple paragraphs of analysis.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "summary": {"type": "string"}
+                },
+                "required": ["summary"]
+            }
+        }
+
+        # — Invoke the model as a data analyst with function calling
+        find_resp = call_chat(
+            find_prompt + [{"role": "system", "content": "You are a data analyst."}],
+            fn=find_fn,
+            fn_name="generate_findings",
+            temp=1
+        )
+
+        # — Extract and render each paragraph
+        summary_text = json.loads(find_resp.function_call.arguments)["summary"]
+        for paragraph in summary_text.split("\n\n"):
+            st.write(paragraph)
