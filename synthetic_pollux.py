@@ -17,65 +17,54 @@ if "authenticated" not in st.session_state:
 if "failed_login" not in st.session_state:
     st.session_state.failed_login = False
 
-# ─── Dark‑Theme CSS ──────────────────────────────────────────
-st.markdown(
-    """
-    <style>
-    /* Full‑page black background */
-    body, .block-container {
-        background-color: #000;
-        color: #eee;
-    }
-    /* Card container */
-    .login-card {
-        max-width: 380px;
-        margin: 6rem auto;
-        background: #111;
-        padding: 2.5rem;
-        border-radius: 16px;
-        box-shadow: 0 12px 32px rgba(0,0,0,0.8);
-    }
-    /* Header styling */
-    .login-header h2 {
-        margin: 0 0 1rem;
-        font-size: 1.75rem;
-        color: #fff;
-        text-align: center;
-    }
-    /* Form spacing */
-    .stForm > div {
-        gap: 1rem;
-    }
-    /* Text input styling */
-    .stTextInput>div>div>input {
-        background: #222 !important;
-        color: #eee !important;
-        border: 1px solid #444 !important;
-    }
-    /* Button styling */
-    .stButton>button {
-        width: 100%;
-        padding: 0.75rem;
-        border: none;
-        border-radius: 8px;
-        font-size: 1.05rem;
-        background: linear-gradient(90deg, #0f0, #0ff);
-        color: #000;
-        font-weight: bold;
-    }
-    .stButton>button:hover {
-        background: linear-gradient(90deg, #0ff, #0f0);
-    }
-    /* Error message color */
-    .stAlert > div {
-        background-color: #400;
-        color: #f88;
-        border: 1px solid #f00;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+# ─── Only inject login‑card CSS when not authenticated ───────
+if not st.session_state.authenticated:
+    st.markdown(
+        """
+        <style>
+        .login-card {
+            max-width: 380px;
+            margin: 6rem auto;
+            background: #000;
+            color: #eee;
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.8);
+        }
+        .login-header h2 {
+            margin: 0 0 1rem;
+            font-size: 1.75rem;
+            text-align: center;
+            color: #fff;
+        }
+        /* Scope inputs & button inside the card */
+        .login-card .stTextInput>div>div>input {
+            background: #222 !important;
+            color: #eee !important;
+            border: 1px solid #444 !important;
+        }
+        .login-card .stButton>button {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            background: linear-gradient(90deg, #0f0, #0ff);
+            color: #000;
+            font-weight: bold;
+        }
+        .login-card .stButton>button:hover {
+            background: linear-gradient(90deg, #0ff, #0f0);
+        }
+        .login-card .stAlert > div {
+            background-color: #400;
+            color: #f88;
+            border: 1px solid #f00;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 # ─── Login Form ─────────────────────────────────────────────
 def login():
@@ -101,14 +90,15 @@ def login():
         st.error("❌ Incorrect password — please try again.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ─── Render or Halt ────────────────────────────────────────
+# ─── Show login or protected content ────────────────────────
 if not st.session_state.authenticated:
     login()
     st.stop()
 
-# ─── Protected Content ─────────────────────────────────────
-st.success("✅ Access granted")
+# ─── Protected Content (normal styling) ────────────────────
+st.success("✅ Access granted!")
 st.title("Welcome to SurveySynth!")
+
 
 
 
