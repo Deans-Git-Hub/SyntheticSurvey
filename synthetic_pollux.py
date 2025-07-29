@@ -24,7 +24,7 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
 # —— 2) Sidebar controls —— #
 st.sidebar.header("Survey Configuration")
 industry   = st.sidebar.text_input("Industry name", value="Pepsi")
-segment    = st.sidebar.text_input("Persona segment (optional)", value="Sugar Lovers")
+segment    = st.sidebar.text_input("Persona segment (optional)", value="Health Buffs")
 n_personas = st.sidebar.number_input("Number of personas", min_value=5, max_value=200, value=50, step=5)
 run_button = st.sidebar.button("Run survey")
 
@@ -149,14 +149,14 @@ def generate_personas(segment, n, schema):
     }
     personas, seen = [], set()
     while len(personas) < n:
-        need     = n - len(personas)
-        resp     = call_chat(
+        need = n - len(personas)
+        resp = call_chat(
             [sys_msg, {"role": "user", "content": f"Generate {need} personas now."}],
             fn=fn, fn_name="generate_personas"
         )
-        batch    = json.loads(resp.function_call.arguments)["personas"]
+        batch = json.loads(resp.function_call.arguments)["personas"]
         for p in batch:
-            uid = p.get("intro","") + p.get("name","")
+            uid = p.get("intro", "") + p.get("name", "")
             if uid not in seen:
                 personas.append(p)
                 seen.add(uid)
@@ -255,15 +255,14 @@ with tab_results:
                 "percentages": {o: round(dist.get(o,0)/total*100,1) for o in opts}
             }
 
-        # —— Dynamic Heatmap Controls —— #
+        # —— Dynamic Bar Chart Controls —— #
         question_map = {q["user"]: q["key"] for q in questions}
         attr_map     = {f["name"]: f["name"] for f in st.session_state.persona_fields if f["name"] != "intro"}
 
         question_labels = list(question_map.keys())
         attr_labels     = list(attr_map.keys())
 
-        default_q = question_labels.index("How often do you drink soda?") \
-            if "How often do you drink soda?" in question_labels else 0
+        default_q    = question_labels.index("How often do you drink soda?") if "How often do you drink soda?" in question_labels else 0
         default_attr = attr_labels.index("gender") if "gender" in attr_labels else 0
 
         selected_q_text = st.selectbox(
@@ -285,32 +284,29 @@ with tab_results:
         df_full = pd.concat([df_p, df_s], axis=1)
 
         if attr in df_full.columns and qk in df_full.columns:
-            df_heat = (
+            df_bar = (
                 df_full
                   .groupby([attr, qk])
                   .size()
                   .reset_index(name="Count")
             )
-            df_heat["Percent"] = df_heat.groupby(attr)["Count"].transform(lambda x: x / x.sum() * 100)
+            df_bar["Percent"] = df_bar.groupby(attr)["Count"].transform(lambda x: x / x.sum() * 100)
 
-            heat = (
-                alt.Chart(df_heat)
-                   .mark_rect()
+            bar = (
+                alt.Chart(df_bar)
+                   .mark_bar()
                    .encode(
                        x=alt.X(f"{qk}:N", title=selected_q_text),
-                       y=alt.Y(f"{attr}:N", title=selected_attr),
-                       color=alt.Color("Percent:Q", scale=alt.Scale(scheme="greens"), title="% within group"),
+                       y=alt.Y("Percent:Q", title="% within group"),
+                       color=alt.Color(f"{attr}:N", title=selected_attr),
                        tooltip=[attr, qk, alt.Tooltip("Percent:Q", format=".1f")]
                    )
-                   .properties(
-                       title=f"{selected_q_text} by {selected_attr}",
-                       width=500, height=300
-                   )
+                   .properties(width=600, height=400, title=f"{selected_q_text} by {selected_attr}")
             )
-            st.altair_chart(heat, use_container_width=True)
+            st.altair_chart(bar, use_container_width=True)
         else:
             missing = [c for c in (attr, qk) if c not in df_full.columns]
-            st.warning(f"Cannot build heatmap—missing column(s): {', '.join(missing)}")
+            st.warning(f"Cannot build chart—missing column(s): {', '.join(missing)}")
 
         # —— AI‑generated summary —— #
         personas_json = json.dumps(personas, indent=2)
