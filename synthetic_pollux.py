@@ -24,7 +24,7 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
 # —— 2) Sidebar controls —— #
 st.sidebar.header("Survey Configuration")
 industry   = st.sidebar.text_input("Industry name", value="Pepsi")
-segment    = st.sidebar.text_input("Persona segment (optional)", value="Health Buffs")
+segment    = st.sidebar.text_input("Persona segment (optional)", value="Sugar Lovers")
 n_personas = st.sidebar.number_input("Number of personas", min_value=5, max_value=200, value=50, step=5)
 run_button = st.sidebar.button("Run survey")
 
@@ -259,15 +259,22 @@ with tab_results:
         question_map = {q["user"]: q["key"] for q in questions}
         attr_map     = {f["name"]: f["name"] for f in st.session_state.persona_fields if f["name"] != "intro"}
 
+        question_labels = list(question_map.keys())
+        attr_labels     = list(attr_map.keys())
+
+        default_q = question_labels.index("How often do you drink soda?") \
+            if "How often do you drink soda?" in question_labels else 0
+        default_attr = attr_labels.index("gender") if "gender" in attr_labels else 0
+
         selected_q_text = st.selectbox(
             "Select question to analyze",
-            list(question_map.keys()),
-            index=list(question_map.keys()).index("How often do you drink soda?") if "How often do you drink soda?" in question_map else 0
+            question_labels,
+            index=default_q
         )
         selected_attr = st.selectbox(
             "Select persona attribute",
-            list(attr_map.keys()),
-            index=list(attr_map.keys()).index("gender") if "gender" in attr_map else 0
+            attr_labels,
+            index=default_attr
         )
 
         qk   = question_map[selected_q_text]
