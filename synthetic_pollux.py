@@ -8,6 +8,30 @@ import pandas as pd
 import altair as alt
 import openai
 
+# 0️⃣ DEBUG: Are our Azure credentials loaded?
+secrets_ok = (
+    "auth" in st.secrets
+    and "microsoft" in st.secrets.auth
+    and st.secrets.auth.microsoft.client_id
+)
+st.write("🔐 Azure secrets loaded? ", secrets_ok)
+
+# 1️⃣ DEBUG: Login check
+logged_in = st.experimental_user.is_logged_in
+st.write("✅ st.experimental_user.is_logged_in:", logged_in)
+
+# 2️⃣ Trigger login if not already
+if not logged_in:
+    st.write("⏳ Redirecting to Microsoft…")   # you should see this momentarily
+    st.login("microsoft")
+
+user = st.user
+if not user or not user.email.endswith("@prophet.com"):
+    st.error("🚫 Access restricted to @prophet.com only.")
+    st.stop()
+
+st.write(f"👋 Welcome back, {user.name}!")
+
 # —— 1) Setup —— #
 st.set_page_config(page_title="Synthetic Survey Engine", layout="wide")
 openai.api_key = os.getenv("OPENAI_API_KEY")
