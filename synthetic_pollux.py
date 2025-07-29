@@ -24,7 +24,7 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
 # —— 2) Sidebar controls —— #
 st.sidebar.header("Survey Configuration")
 industry   = st.sidebar.text_input("Industry name", value="Pepsi")
-segment    = st.sidebar.text_input("Persona segment (optional)", value="Sugar Lovers")
+segment    = st.sidebar.text_input("Persona segment (optional)", value="Health Buffs")
 n_personas = st.sidebar.number_input("Number of personas", min_value=5, max_value=200, value=50, step=5)
 run_button = st.sidebar.button("Run survey")
 
@@ -192,7 +192,7 @@ def run_survey(personas, questions, segment):
             if choice is None:
                 retry = call_chat(
                     [base, {"role":"system","content":"Answer with exactly one of: " + ", ".join(q["options"])}, {"role":"user","content":q["user"]}],
-                    temp=0.0
+                    temp=1
                 )
                 choice = parse_choice(getattr(retry, "content", ""), q["options"]) or q["options"][-1]
             scores[q["key"]].append(choice)
