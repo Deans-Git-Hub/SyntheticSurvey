@@ -15,22 +15,29 @@ import streamlit as st
 
 import streamlit as st
 
-# ─── Page & Session Setup ───────────────────────────────────
+import streamlit as st
+
+# ─── Page Config & Session State ───────────────────────────
 st.set_page_config(page_title="Secure App", layout="centered")
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
+if "failed_login" not in st.session_state:
+    st.session_state.failed_login = False
 
 # ─── Custom CSS ─────────────────────────────────────────────
 st.markdown(
     """
     <style>
+    body {
+        background: linear-gradient(135deg, #f0f4ff 0%, #e8ecfb 100%);
+    }
     .login-card {
-        max-width: 400px;
-        margin: 4rem auto;
+        max-width: 380px;
+        margin: 6rem auto;
         background: #ffffff;
-        padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        padding: 2.5rem;
+        border-radius: 16px;
+        box-shadow: 0 12px 32px rgba(0,0,0,0.08);
     }
     .login-header {
         text-align: center;
@@ -38,23 +45,24 @@ st.markdown(
     }
     .login-header h2 {
         margin: 0;
-        font-size: 1.6rem;
+        font-size: 1.75rem;
+        color: #333;
     }
     .stForm > div {
-        gap: 0.75rem;
+        gap: 1rem;
     }
     .stButton > button {
         width: 100%;
         padding: 0.75rem;
         border-radius: 8px;
-        font-size: 1rem;
+        font-size: 1.05rem;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# ─── Login Form Function ────────────────────────────────────
+# ─── Login Form ─────────────────────────────────────────────
 def login():
     st.markdown('<div class="login-card">', unsafe_allow_html=True)
     st.markdown(
@@ -73,18 +81,22 @@ def login():
                 st.session_state.authenticated = True
                 st.experimental_rerun()
             else:
-                st.error("❌ Incorrect password")
+                st.session_state.failed_login = True
+
+    # Only show error *after* a failed submit
+    if st.session_state.failed_login:
+        st.error("❌ Incorrect password — please try again.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ─── Render or Stop ────────────────────────────────────────
+# ─── Render or Halt ────────────────────────────────────────
 if not st.session_state.authenticated:
     login()
     st.stop()
 
 # ─── Protected Content ─────────────────────────────────────
-st.success("✅ Access granted!")
-st.title("Welcome to Your Secure Streamlit App")
-st.write("Here’s the confidential content…")
+st.success("✅ Access granted")
+st.title("Welcome to SynthSurvey!")
+
 
 
 
