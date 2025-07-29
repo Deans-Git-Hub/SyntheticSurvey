@@ -10,13 +10,6 @@ import pandas as pd
 import altair as alt
 import openai
 
-
-import streamlit as st
-
-import streamlit as st
-
-import streamlit as st
-
 # ─── Page Config & Session State ───────────────────────────
 st.set_page_config(page_title="Secure App", layout="centered")
 if "authenticated" not in st.session_state:
@@ -24,38 +17,60 @@ if "authenticated" not in st.session_state:
 if "failed_login" not in st.session_state:
     st.session_state.failed_login = False
 
-# ─── Custom CSS ─────────────────────────────────────────────
+# ─── Dark‑Theme CSS ──────────────────────────────────────────
 st.markdown(
     """
     <style>
-    body {
-        background: linear-gradient(135deg, #f0f4ff 0%, #e8ecfb 100%);
+    /* Full‑page black background */
+    body, .block-container {
+        background-color: #000;
+        color: #eee;
     }
+    /* Card container */
     .login-card {
         max-width: 380px;
         margin: 6rem auto;
-        background: #ffffff;
+        background: #111;
         padding: 2.5rem;
         border-radius: 16px;
-        box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+        box-shadow: 0 12px 32px rgba(0,0,0,0.8);
     }
-    .login-header {
-        text-align: center;
-        margin-bottom: 1.5rem;
-    }
+    /* Header styling */
     .login-header h2 {
-        margin: 0;
+        margin: 0 0 1rem;
         font-size: 1.75rem;
-        color: #333;
+        color: #fff;
+        text-align: center;
     }
+    /* Form spacing */
     .stForm > div {
         gap: 1rem;
     }
-    .stButton > button {
+    /* Text input styling */
+    .stTextInput>div>div>input {
+        background: #222 !important;
+        color: #eee !important;
+        border: 1px solid #444 !important;
+    }
+    /* Button styling */
+    .stButton>button {
         width: 100%;
         padding: 0.75rem;
+        border: none;
         border-radius: 8px;
         font-size: 1.05rem;
+        background: linear-gradient(90deg, #0f0, #0ff);
+        color: #000;
+        font-weight: bold;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(90deg, #0ff, #0f0);
+    }
+    /* Error message color */
+    .stAlert > div {
+        background-color: #400;
+        color: #f88;
+        border: 1px solid #f00;
     }
     </style>
     """,
@@ -79,11 +94,9 @@ def login():
         if submit:
             if pwd == st.secrets["credentials"]["password"]:
                 st.session_state.authenticated = True
-                st.experimental_rerun()
             else:
                 st.session_state.failed_login = True
 
-    # Only show error *after* a failed submit
     if st.session_state.failed_login:
         st.error("❌ Incorrect password — please try again.")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -95,7 +108,8 @@ if not st.session_state.authenticated:
 
 # ─── Protected Content ─────────────────────────────────────
 st.success("✅ Access granted")
-st.title("Welcome to SynthSurvey!")
+st.title("Welcome to SurveySynth!")
+
 
 
 
