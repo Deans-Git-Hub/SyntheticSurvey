@@ -13,44 +13,86 @@ import openai
 
 import streamlit as st
 
-# Initialize session state
+# ─── Session State ─────────────────────────────────────────
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
+# ─── Page Config ───────────────────────────────────────────
+st.set_page_config(page_title="Secure App", layout="centered")
+
+# ─── Custom CSS ────────────────────────────────────────────
+st.markdown(
+    """
+    <style>
+    .login-container {
+        max-width: 400px;
+        margin: auto;
+        background: #f9f9f9;
+        padding: 2.5rem;
+        border-radius: 12px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    .login-header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+    .login-header img {
+        width: 80px;
+        margin-bottom: 0.5rem;
+    }
+    .login-header h2 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+    .stButton>button {
+        width: 100%;
+        padding: 0.7rem 0;
+        font-size: 1rem;
+        border-radius: 8px;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ─── Login Form ────────────────────────────────────────────
 def login():
-    """Renders a nice login form and handles authentication."""
-    # Center the form
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("## 🔒 Protected App Login")
-        # Use a form to group input + button
-        with st.form("login_form", clear_on_submit=False):
+    with st.container():
+        st.markdown('<div class="login-container">', unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div class="login-header">
+                <!-- Optional logo -->
+                <!--<img src="https://yourdomain.com/logo.png" alt="Logo">-->
+                <h2>🔒 Secure Login</h2>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        with st.form("login_form"):
             pwd = st.text_input(
-                "Enter password", 
-                type="password", 
-                key="pwd_input", 
-                help="You’ll need this to see the app content."
+                "Enter password",
+                type="password",
+                help="You’ll need this to view the app.",
+                clear_on_submit=True,
             )
             submit = st.form_submit_button("Unlock")
             if submit:
                 if pwd == st.secrets["credentials"]["password"]:
                     st.session_state.authenticated = True
-                    # Clear the text input
-                    st.session_state.pwd_input = ""
-                    # Rerun so the form disappears
                     st.experimental_rerun()
                 else:
                     st.error("❌ Incorrect password")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# Run login if not yet authenticated
 if not st.session_state.authenticated:
     login()
     st.stop()
 
-# ─── Protected Content ────────────────────────────────────────
-st.success("✅ You’re in!")
+# ─── Protected Content ─────────────────────────────────────
+st.success("✅ Access granted!")
 st.title("Welcome to Your Secure Streamlit App")
-st.write("Here’s the confidential stuff…")
+st.write("Here’s the confidential content…")
 
 
 # —— 1) Setup —— #
