@@ -11,29 +11,46 @@ import altair as alt
 import openai
 
 
-def check_password() -> bool:
-    """Returns True if the user-entered password matches."""
-    # Prompt for password input (masked)
-    pwd = st.text_input("🔒 Enter app password", type="password")
-    if not pwd:
-        # No input yet; just render the box
-        return False
-    if pwd == st.secrets["credentials"]["password"]:
-        # Correct! proceed
-        return True
-    # Wrong password entered
-    st.error("❌ Incorrect password. Try again.")
-    return False
+import streamlit as st
 
-# Run the check at the top of your script
-if not check_password():
-    # Stop further execution until they get it right
+# Initialize session state
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+def login():
+    """Renders a nice login form and handles authentication."""
+    # Center the form
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("## 🔒 Protected App Login")
+        # Use a form to group input + button
+        with st.form("login_form", clear_on_submit=False):
+            pwd = st.text_input(
+                "Enter password", 
+                type="password", 
+                key="pwd_input", 
+                help="You’ll need this to see the app content."
+            )
+            submit = st.form_submit_button("Unlock")
+            if submit:
+                if pwd == st.secrets["credentials"]["password"]:
+                    st.session_state.authenticated = True
+                    # Clear the text input
+                    st.session_state.pwd_input = ""
+                    # Rerun so the form disappears
+                    st.experimental_rerun()
+                else:
+                    st.error("❌ Incorrect password")
+
+# Run login if not yet authenticated
+if not st.session_state.authenticated:
+    login()
     st.stop()
 
-# ─── Protected Content ──────────────────────────────────────
+# ─── Protected Content ────────────────────────────────────────
+st.success("✅ You’re in!")
 st.title("Welcome to Your Secure Streamlit App")
-st.write("This content is only visible after you enter the correct password.")
-# …the rest of your app…
+st.write("Here’s the confidential stuff…")
 
 
 # —— 1) Setup —— #
