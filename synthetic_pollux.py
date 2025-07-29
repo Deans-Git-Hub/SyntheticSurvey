@@ -13,78 +13,70 @@ import openai
 
 import streamlit as st
 
-# ─── Session State ─────────────────────────────────────────
+import streamlit as st
+
+# ─── Page & Session Setup ───────────────────────────────────
+st.set_page_config(page_title="Secure App", layout="centered")
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# ─── Page Config ───────────────────────────────────────────
-st.set_page_config(page_title="Secure App", layout="centered")
-
-# ─── Custom CSS ────────────────────────────────────────────
+# ─── Custom CSS ─────────────────────────────────────────────
 st.markdown(
     """
     <style>
-    .login-container {
+    .login-card {
         max-width: 400px;
-        margin: auto;
-        background: #f9f9f9;
-        padding: 2.5rem;
+        margin: 4rem auto;
+        background: #ffffff;
+        padding: 2rem;
         border-radius: 12px;
-        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
     }
     .login-header {
         text-align: center;
         margin-bottom: 1.5rem;
     }
-    .login-header img {
-        width: 80px;
-        margin-bottom: 0.5rem;
-    }
     .login-header h2 {
         margin: 0;
-        font-size: 1.5rem;
+        font-size: 1.6rem;
     }
-    .stButton>button {
+    .stForm > div {
+        gap: 0.75rem;
+    }
+    .stButton > button {
         width: 100%;
-        padding: 0.7rem 0;
-        font-size: 1rem;
+        padding: 0.75rem;
         border-radius: 8px;
+        font-size: 1rem;
     }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# ─── Login Form ────────────────────────────────────────────
+# ─── Login Form Function ────────────────────────────────────
 def login():
-    with st.container():
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
-        st.markdown(
-            """
-            <div class="login-header">
-                <!-- Optional logo -->
-                <!--<img src="https://yourdomain.com/logo.png" alt="Logo">-->
-                <h2>🔒 Secure Login</h2>
-            </div>
-            """,
-            unsafe_allow_html=True,
+    st.markdown('<div class="login-card">', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="login-header"><h2>🔒 Secure Login</h2></div>',
+        unsafe_allow_html=True,
+    )
+    with st.form("login_form"):
+        pwd = st.text_input(
+            "Password",
+            type="password",
+            help="Enter the secret password to access the app."
         )
-        with st.form("login_form"):
-            pwd = st.text_input(
-                "Enter password",
-                type="password",
-                help="You’ll need this to view the app.",
-                clear_on_submit=True,
-            )
-            submit = st.form_submit_button("Unlock")
-            if submit:
-                if pwd == st.secrets["credentials"]["password"]:
-                    st.session_state.authenticated = True
-                    st.experimental_rerun()
-                else:
-                    st.error("❌ Incorrect password")
-        st.markdown("</div>", unsafe_allow_html=True)
+        submit = st.form_submit_button("Unlock")
+        if submit:
+            if pwd == st.secrets["credentials"]["password"]:
+                st.session_state.authenticated = True
+                st.experimental_rerun()
+            else:
+                st.error("❌ Incorrect password")
+    st.markdown("</div>", unsafe_allow_html=True)
 
+# ─── Render or Stop ────────────────────────────────────────
 if not st.session_state.authenticated:
     login()
     st.stop()
@@ -93,6 +85,7 @@ if not st.session_state.authenticated:
 st.success("✅ Access granted!")
 st.title("Welcome to Your Secure Streamlit App")
 st.write("Here’s the confidential content…")
+
 
 
 # —— 1) Setup —— #
