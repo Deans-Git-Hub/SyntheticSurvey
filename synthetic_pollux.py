@@ -2,7 +2,7 @@
 import os
 import json
 import re
-from collections import Counter, defaultdict
+from collections import Counter
 import difflib
 
 import streamlit as st
@@ -24,15 +24,8 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
 # —— 2) Sidebar controls —— #
 st.sidebar.header("Survey Configuration")
 industry   = st.sidebar.text_input("Industry name", value="Pepsi")
-segment    = st.sidebar.text_input(
-    "Persona segment (optional)",
-    value="Health Buffs",
-    help="All synthetic respondents will fall under this segment."
-)
-n_personas = st.sidebar.number_input(
-    "Number of personas",
-    min_value=5, max_value=200, value=50, step=5
-)
+segment    = st.sidebar.text_input("Persona segment (optional)", value="Sugar Lovers")
+n_personas = st.sidebar.number_input("Number of personas", min_value=5, max_value=200, value=50, step=5)
 run_button = st.sidebar.button("Run survey")
 
 # —— 3) Initialize session state —— #
@@ -48,16 +41,31 @@ if "persona_fields" not in st.session_state:
         {"name": "urbanicity", "type": "string"},
         {"name": "education", "type": "string"},
         {"name": "occupation", "type": "string"},
-        {"name": "intro", "type": "string"},  # fixed field
+        {"name": "intro", "type": "string"},
     ]
 if "questions" not in st.session_state:
     st.session_state.questions = [
-        {"key":"alignment","system":"Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"Is Pepsi easily accessible?","options":["Yes","No"]},
-        {"key":"interest","system":"Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"At what time do you drink soda?","options":["Morning","Afternoon","Evening"]},
-        {"key":"timeline","system":"Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"How often do you drink soda?","options":["Frequently","Occasionally","Rarely","Never"]},
+        {
+            "key": "alignment",
+            "system": "Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.",
+            "user": "Is Pepsi easily accessible?",
+            "options": ["Yes", "No"]
+        },
+        {
+            "key": "interest",
+            "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
+            "user": "At what time do you drink soda?",
+            "options": ["Morning", "Afternoon", "Evening"]
+        },
+        {
+            "key": "timeline",
+            "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
+            "user": "How often do you drink soda?",
+            "options": ["Frequently", "Occasionally", "Rarely", "Never"]
+        },
     ]
 
-# —— 3.1) Callbacks for add/remove —— #
+# —— Callbacks for add/remove —— #
 def remove_persona_field(idx):
     st.session_state.persona_fields.pop(idx)
 
@@ -79,44 +87,34 @@ def add_question():
 tab_config, tab_results = st.tabs(["Configuration", "Results"])
 
 with tab_config:
-    # Persona attributes
     st.header("Persona Attributes")
-    for idx, field in enumerate(st.session_state.persona_fields):
-        if field["name"] == "intro":
-            st.markdown("**intro** (fixed field for persona intro text)")
+    for i, f in enumerate(st.session_state.persona_fields):
+        if f["name"] == "intro":
+            st.markdown("**intro** (fixed field)")
             continue
-
-        cols = st.columns([4, 2, 1])
-        name = cols[0].text_input("Field name", field["name"], key=f"pf_name_{idx}")
-        typ  = cols[1].selectbox("Type", ["string", "integer"],
-                                 index=["string", "integer"].index(field["type"]),
-                                 key=f"pf_type_{idx}")
-
-        st.session_state.persona_fields[idx] = {"name": name.strip(), "type": typ}
-        cols[2].button("Remove", key=f"pf_remove_{idx}",
-                       on_click=remove_persona_field, args=(idx,))
-
+        c1, c2, c3 = st.columns([4, 2, 1])
+        name = c1.text_input("Field name", f["name"], key=f"pf_name_{i}")
+        typ  = c2.selectbox("Type", ["string", "integer"],
+                            index=["string", "integer"].index(f["type"]),
+                            key=f"pf_type_{i}")
+        st.session_state.persona_fields[i] = {"name": name.strip(), "type": typ}
+        c3.button("Remove", key=f"rm_pf_{i}", on_click=remove_persona_field, args=(i,))
     st.button("Add persona field", on_click=add_persona_field)
 
-    # Survey questions
     st.header("Survey Questions")
-    for idx, q in enumerate(st.session_state.questions):
-        st.markdown(f"**Question {idx+1}**")
-        key  = st.text_input("Key", q["key"], key=f"q_key_{idx}")
-        sys  = st.text_input("System prompt", q["system"], key=f"q_sys_{idx}")
-        user = st.text_input("User prompt", q["user"], key=f"q_user_{idx}")
-        opts = st.text_input("Options (comma-separated)", ", ".join(q["options"]), key=f"q_opts_{idx}")
-
-        st.session_state.questions[idx] = {
+    for i, q in enumerate(st.session_state.questions):
+        st.markdown(f"**Question {i+1}**")
+        key  = st.text_input("Key", q["key"], key=f"q_key_{i}")
+        sys  = st.text_input("System prompt", q["system"], key=f"q_sys_{i}")
+        user = st.text_input("User prompt", q["user"], key=f"q_user_{i}")
+        opts = st.text_input("Options (comma-separated)", ", ".join(q["options"]), key=f"q_opts_{i}")
+        st.session_state.questions[i] = {
             "key": key.strip(),
             "system": sys.strip(),
             "user": user.strip(),
             "options": [o.strip() for o in opts.split(",") if o.strip()]
         }
-
-        st.button("Remove question", key=f"q_remove_{idx}",
-                  on_click=remove_question, args=(idx,))
-
+        st.button("Remove question", key=f"rm_q_{i}", on_click=remove_question, args=(i,))
     st.button("Add survey question", on_click=add_question)
 
 # —— 5) Schema & persona function —— #
@@ -132,18 +130,18 @@ def make_persona_fn(schema):
         "name": "generate_personas",
         "description": "Generate customer personas.",
         "parameters": {
-            "type":"object",
-            "properties": {"personas": {"type":"array", "items": schema}},
+            "type": "object",
+            "properties": {"personas": {"type": "array", "items": schema}},
             "required": ["personas"]
         }
     }
 
 def generate_personas(segment, n, schema):
     fn = make_persona_fn(schema)
-    seg_txt = f" They all belong to the “{segment}” segment." if segment else ""
+    seg_txt = f" They all belong to “{segment}”." if segment else ""
     sys_msg = {
-        "role":"system",
-        "content":(
+        "role": "system",
+        "content": (
             f"Generate up to {n} unique customer personas.{seg_txt} "
             "Each persona should reflect that background, but exhibit a wide spectrum "
             "of preferences and opinions, not uniformly positive or negative."
@@ -152,8 +150,10 @@ def generate_personas(segment, n, schema):
     personas, seen = [], set()
     while len(personas) < n:
         need     = n - len(personas)
-        user_msg = {"role":"user","content":f"Generate {need} personas now."}
-        resp     = call_chat([sys_msg, user_msg], fn=fn, fn_name="generate_personas")
+        resp     = call_chat(
+            [sys_msg, {"role": "user", "content": f"Generate {need} personas now."}],
+            fn=fn, fn_name="generate_personas"
+        )
         batch    = json.loads(resp.function_call.arguments)["personas"]
         for p in batch:
             uid = p.get("intro","") + p.get("name","")
@@ -164,38 +164,21 @@ def generate_personas(segment, n, schema):
                 break
     return personas
 
-# —— 6) Improved parse_choice to reduce bias —— #
-def parse_choice(txt, options, fuzzy_cutoff=0.8):
-    """
-    Return the option whose whole-word appears earliest in txt.
-    If none match exactly, fall back to a fuzzy match above the cutoff.
-    Otherwise, return None so you can handle/retry unparsed cases.
-    """
+# —— 6) Improved parser —— #
+def parse_choice(txt, options, cutoff=0.8):
     text = (txt or "").lower()
-
-    # 1) exact whole-word matches with their position
     matches = []
     for opt in options:
-        pat = r"\b" + re.escape(opt.lower()) + r"\b"
-        m = re.search(pat, text)
+        m = re.search(rf"\b{re.escape(opt.lower())}\b", text)
         if m:
             matches.append((opt, m.start()))
-
     if matches:
-        # 2) pick the earliest-occurring match
-        best_opt, _pos = min(matches, key=lambda x: x[1])
-        return best_opt
-
-    # 3) fuzzy fallback
-    lower_opts = [o.lower() for o in options]
-    fuzzy = difflib.get_close_matches(text, lower_opts, n=1, cutoff=fuzzy_cutoff)
+        return min(matches, key=lambda x: x[1])[0]
+    fuzzy = difflib.get_close_matches(text, [o.lower() for o in options], n=1, cutoff=cutoff)
     if fuzzy:
         return next(o for o in options if o.lower() == fuzzy[0])
-
-    # 4) no clear parse: return None so you can log or retry
     return None
 
-# —— 7) Survey runner —— #
 def run_survey(personas, questions, segment):
     scores = {q["key"]: [] for q in questions}
     for p in personas:
@@ -203,22 +186,19 @@ def run_survey(personas, questions, segment):
         if segment:
             lines.append(f"Segment: {segment}")
         base = {"role":"system","content":"You are this persona:\n" + "\n".join(lines)}
-
         for q in questions:
-            msg = call_chat(
-                [base, {"role":"system","content":q["system"]}, {"role":"user","content":q["user"]}]
-            )
+            msg = call_chat([base, {"role":"system","content":q["system"]}, {"role":"user","content":q["user"]}])
             choice = parse_choice(getattr(msg, "content", ""), q["options"])
             if choice is None:
-                # retry once with a simpler prompt
                 retry = call_chat(
                     [base, {"role":"system","content":"Answer with exactly one of: " + ", ".join(q["options"])}, {"role":"user","content":q["user"]}],
-                    temp=1
+                    temp=0.0
                 )
                 choice = parse_choice(getattr(retry, "content", ""), q["options"]) or q["options"][-1]
             scores[q["key"]].append(choice)
     return scores
 
+# —— 7) Results & Key Findings —— #
 with tab_results:
     if run_button:
         schema    = build_persona_schema(st.session_state.persona_fields)
@@ -235,10 +215,10 @@ with tab_results:
         # Per-question charts & tables
         for q in questions:
             dist = Counter(scores[q["key"]])
-            df   = pd.DataFrame({
+            df = pd.DataFrame({
                 "Option":  q["options"],
-                "Count":   [dist.get(o, 0) for o in q["options"]],
-                "Percent": [round(dist.get(o, 0) / total * 100, 1) for o in q["options"]],
+                "Count":   [dist.get(o,0) for o in q["options"]],
+                "Percent": [round(dist.get(o,0)/total*100,1) for o in q["options"]],
             })
             st.header(q["user"])
             chart = (
@@ -261,55 +241,103 @@ with tab_results:
         for p in personas:
             st.markdown(f"**{p.get('name','')}**: {p.get('intro','')}")
 
-        # —— 8) Key Findings Summary —— #
-        st.header("Key Findings Summary")
+        # —— Key Findings —— #
+        st.header("Key Findings")
+
+        # Compute stats
         stats = {}
         for q in questions:
-            key  = q["key"]
+            key = q["key"]
             opts = q["options"]
             dist = Counter(scores[key])
-            counts = {o: dist.get(o, 0) for o in opts}
-            pct    = {o: round(counts[o] / total * 100, 1) for o in opts}
-            stats[key] = {"counts": counts, "percentages": pct}
+            stats[key] = {
+                "counts": {o: dist.get(o,0) for o in opts},
+                "percentages": {o: round(dist.get(o,0)/total*100,1) for o in opts}
+            }
 
+        # —— Dynamic Heatmap Controls —— #
+        question_map = {q["user"]: q["key"] for q in questions}
+        attr_map     = {f["name"]: f["name"] for f in st.session_state.persona_fields if f["name"] != "intro"}
+
+        selected_q_text = st.selectbox(
+            "Select question to analyze",
+            list(question_map.keys()),
+            index=list(question_map.keys()).index("How often do you drink soda?") if "How often do you drink soda?" in question_map else 0
+        )
+        selected_attr = st.selectbox(
+            "Select persona attribute",
+            list(attr_map.keys()),
+            index=list(attr_map.keys()).index("gender") if "gender" in attr_map else 0
+        )
+
+        qk   = question_map[selected_q_text]
+        attr = attr_map[selected_attr]
+
+        df_p    = pd.DataFrame(personas)
+        df_s    = pd.DataFrame(scores)
+        df_full = pd.concat([df_p, df_s], axis=1)
+
+        if attr in df_full.columns and qk in df_full.columns:
+            df_heat = (
+                df_full
+                  .groupby([attr, qk])
+                  .size()
+                  .reset_index(name="Count")
+            )
+            df_heat["Percent"] = df_heat.groupby(attr)["Count"].transform(lambda x: x / x.sum() * 100)
+
+            heat = (
+                alt.Chart(df_heat)
+                   .mark_rect()
+                   .encode(
+                       x=alt.X(f"{qk}:N", title=selected_q_text),
+                       y=alt.Y(f"{attr}:N", title=selected_attr),
+                       color=alt.Color("Percent:Q", scale=alt.Scale(scheme="greens"), title="% within group"),
+                       tooltip=[attr, qk, alt.Tooltip("Percent:Q", format=".1f")]
+                   )
+                   .properties(
+                       title=f"{selected_q_text} by {selected_attr}",
+                       width=500, height=300
+                   )
+            )
+            st.altair_chart(heat, use_container_width=True)
+        else:
+            missing = [c for c in (attr, qk) if c not in df_full.columns]
+            st.warning(f"Cannot build heatmap—missing column(s): {', '.join(missing)}")
+
+        # —— AI‑generated summary —— #
         personas_json = json.dumps(personas, indent=2)
         stats_json    = json.dumps(stats, indent=2)
-
         find_prompt = [
             {
-                "role": "system",
-                "content": (
+                "role":"system",
+                "content":(
                     f"Synthetic Survey Engine results for industry '{industry}'"
-                    f"{' (segment: ' + segment + ')' if segment else ''}.\n\n"
+                    f"{' (segment: '+segment+')' if segment else ''}.\n\n"
                     f"Metrics:\n{stats_json}\n\n"
                     f"Persona profiles:\n{personas_json}"
                 )
             },
             {
-                "role": "user",
-                "content": (
+                "role":"user",
+                "content":(
                     "Based on these metrics and persona profiles, write several short paragraphs "
                     "highlighting overall response trends and which persona characteristics "
                     "most strongly correlate with particular answer patterns."
                 )
             }
         ]
-
         find_fn = {
-            "name": "generate_findings",
-            "description": "Return an object with a 'summary' field containing multiple paragraphs of analysis.",
-            "parameters": {
-                "type": "object",
-                "properties": {"summary": {"type": "string"}},
-                "required": ["summary"]
+            "name":"generate_findings",
+            "description":"Return an object with a 'summary' field containing multiple paragraphs of analysis.",
+            "parameters":{
+                "type":"object",
+                "properties":{"summary":{"type":"string"}},
+                "required":["summary"]
             }
         }
-
-        find_resp = call_chat(
-            find_prompt + [{"role": "system", "content": "You are a data analyst."}],
-            fn=find_fn, fn_name="generate_findings", temp=1
-        )
-
-        summary_text = json.loads(find_resp.function_call.arguments)["summary"]
-        for paragraph in summary_text.split("\n\n"):
-            st.write(paragraph)
+        find_resp = call_chat(find_prompt + [{"role":"system","content":"You are a data analyst."}],
+                              fn=find_fn, fn_name="generate_findings", temp=1)
+        summary = json.loads(find_resp.function_call.arguments)["summary"]
+        for para in summary.split("\n\n"):
+            st.write(para)
