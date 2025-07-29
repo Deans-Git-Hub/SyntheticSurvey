@@ -46,12 +46,12 @@ if "persona_fields" not in st.session_state:
         {"name": "urbanicity", "type": "string"},
         {"name": "education", "type": "string"},
         {"name": "occupation", "type": "string"},
-        {"name": "intro", "type": "string"},
+        {"name": "intro", "type": "string"},  # fixed field, not editable
     ]
 if "questions" not in st.session_state:
     st.session_state.questions = [
-        {"key":"accessibility","system":"Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"Is Pepsi easily accessible?","options":["Yes","No"]},
-        {"key":"interest","system":"Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"At what time would you drink soda?","options":["Morning", "Afternoon", "Evening"]},
+        {"key":"alignment","system":"Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"Is Pepsi easily accessible?","options":["Yes","No"]},
+        {"key":"interest","system":"Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"At what time do you drink soda?","options":["Morning", "Afternoon", "Evening"]},
         {"key":"timeline","system":"Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"How often do you drink soda?","options":["Frequently","Occasionally","Rarely","Never"]},
     ]
 
@@ -61,20 +61,43 @@ tab_config, tab_results = st.tabs(["Configuration", "Results"])
 with tab_config:
     # Persona attributes
     st.header("Persona Attributes")
+    to_remove = []
     for idx, field in enumerate(st.session_state.persona_fields):
+        # Do not allow editing/removal of the intro field
+        if field["name"] == "intro":
+            st.markdown("**intro** (fixed field for persona intro text)")
+            continue
+
         cols = st.columns([4, 2, 1])
         name = cols[0].text_input("Field name", field["name"], key=f"pf_name_{idx}")
         typ  = cols[1].selectbox("Type", ["string","integer"],
                                  index=["string","integer"].index(field["type"]),
                                  key=f"pf_type_{idx}")
         if cols[2].button("Remove", key=f"pf_remove_{idx}"):
-            st.session_state.persona_fields.pop(idx)
+            to_remove.append(idx)
+        # Update the field in session_state
         st.session_state.persona_fields[idx] = {"name": name.strip(), "type": typ}
+
+    # Apply removals (if any) after the loop
+    if to_remove:
+        st.session_state.persona_fields = [
+            f for i, f in enumerate(st.session_state.persona_fields) if i not in to_remove
+        ]
+
+    # Add new persona field (insert before intro if present)
     if st.button("Add persona field"):
-        st.session_state.persona_fields.append({"name": "", "type": "string"})
+        intro_indices = [i for i, f in enumerate(st.session_state.persona_fields) if f["name"] == "intro"]
+        if intro_indices:
+            st.session_state.persona_fields.insert(
+                intro_indices[0],
+                {"name": "", "type": "string"}
+            )
+        else:
+            st.session_state.persona_fields.append({"name": "", "type": "string"})
 
     # Survey questions
     st.header("Survey Questions")
+    q_to_remove = []
     for idx, q in enumerate(st.session_state.questions):
         st.markdown(f"**Question {idx+1}**")
         key  = st.text_input("Key", q["key"], key=f"q_key_{idx}")
@@ -82,29 +105,39 @@ with tab_config:
         user = st.text_input("User prompt", q["user"], key=f"q_user_{idx}")
         opts = st.text_input("Options (comma-separated)", ", ".join(q["options"]), key=f"q_opts_{idx}")
         if st.button("Remove question", key=f"q_remove_{idx}"):
-            st.session_state.questions.pop(idx)
+            q_to_remove.append(idx)
         st.session_state.questions[idx] = {
             "key": key.strip(),
             "system": sys.strip(),
             "user": user.strip(),
             "options": [o.strip() for o in opts.split(",") if o.strip()]
         }
+    # Apply question removals
+    if q_to_remove:
+        st.session_state.questions = [
+            q for i, q in enumerate(st.session_state.questions) if i not in q_to_remove
+        ]
+    # Add a new question
     if st.button("Add survey question"):
-        st.session_state.questions.append({"key":"","system":"","user":"","options":[]})
+        st.session_state.questions.append({"key": "", "system": "", "user": "", "options": []})
 
 # —— 5) Schema & persona function —— #
 def build_persona_schema(fields):
     props, req = {}, []
     for f in fields:
-        props[f["name"]] = {"type": "integer"} if f["type"]=="integer" else {"type":"string"}
+        props[f["name"]] = {"type": "integer"} if f["type"] == "integer" else {"type": "string"}
         req.append(f["name"])
-    return {"type":"object","properties":props,"required":req}
+    return {"type": "object", "properties": props, "required": req}
 
 def make_persona_fn(schema):
     return {
         "name": "generate_personas",
         "description": "Generate customer personas.",
-        "parameters": {"type":"object","properties":{"personas":{"type":"array","items":schema}},"required":["personas"]}
+        "parameters": {
+            "type":"object",
+            "properties": {"personas": {"type":"array", "items": schema}},
+            "required": ["personas"]
+        }
     }
 
 def generate_personas(segment, n, schema):
@@ -142,15 +175,17 @@ def parse_choice(txt, options):
     return options[-1]
 
 def run_survey(personas, questions, segment):
-    scores = {q["key"]:[] for q in questions}
+    scores = {q["key"]: [] for q in questions}
     for p in personas:
         lines = [f"{f['name'].capitalize()}: {p.get(f['name'], '')}" for f in st.session_state.persona_fields]
         if segment:
             lines.append(f"Segment: {segment}")
         base = {"role":"system","content":"You are this persona:\n" + "\n".join(lines)}
         for q in questions:
-            msg = call_chat([base, {"role":"system","content":q["system"]}, {"role":"user","content":q["user"]}])
-            scores[q["key"]].append(parse_choice(getattr(msg,"content",""), q["options"]))
+            msg = call_chat(
+                [base, {"role":"system","content":q["system"]}, {"role":"user","content":q["user"]}]
+            )
+            scores[q["key"]].append(parse_choice(getattr(msg, "content", ""), q["options"]))
     return scores
 
 with tab_results:
@@ -171,8 +206,8 @@ with tab_results:
             dist = Counter(scores[q["key"]])
             df   = pd.DataFrame({
                 "Option":  q["options"],
-                "Count":   [dist.get(o,0) for o in q["options"]],
-                "Percent": [round(dist.get(o,0)/total*100,1) for o in q["options"]],
+                "Count":   [dist.get(o, 0) for o in q["options"]],
+                "Percent": [round(dist.get(o, 0) / total * 100, 1) for o in q["options"]],
             })
             st.header(q["user"])
             chart = (
@@ -200,13 +235,12 @@ with tab_results:
 
         # — Compute stats for each question
         stats = {}
-        total = len(personas)
         for q in questions:
-            key     = q["key"]
-            opts    = q["options"]
-            dist    = Counter(scores[key])
-            counts  = {o: dist.get(o, 0) for o in opts}
-            pct     = {o: round(counts[o] / total * 100, 1) for o in opts}
+            key  = q["key"]
+            opts = q["options"]
+            dist = Counter(scores[key])
+            counts = {o: dist.get(o, 0) for o in opts}
+            pct    = {o: round(counts[o] / total * 100, 1) for o in opts}
             stats[key] = {"counts": counts, "percentages": pct}
 
         # — Serialize personas & stats
@@ -240,19 +274,15 @@ with tab_results:
             "description": "Return an object with a 'summary' field containing multiple paragraphs of analysis.",
             "parameters": {
                 "type": "object",
-                "properties": {
-                    "summary": {"type": "string"}
-                },
+                "properties": {"summary": {"type": "string"}},
                 "required": ["summary"]
             }
         }
 
-        # — Invoke the model as a data analyst with function calling
+        # — Invoke as a data analyst with function calling
         find_resp = call_chat(
             find_prompt + [{"role": "system", "content": "You are a data analyst."}],
-            fn=find_fn,
-            fn_name="generate_findings",
-            temp=1
+            fn=find_fn, fn_name="generate_findings", temp=1
         )
 
         # — Extract and render each paragraph
