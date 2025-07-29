@@ -46,7 +46,7 @@ if "persona_fields" not in st.session_state:
         {"name": "urbanicity", "type": "string"},
         {"name": "education", "type": "string"},
         {"name": "occupation", "type": "string"},
-        {"name": "intro", "type": "string"},  # fixed field, not editable
+        {"name": "intro", "type": "string"},  # fixed, not editable
     ]
 if "questions" not in st.session_state:
     st.session_state.questions = [
@@ -75,25 +75,23 @@ with tab_config:
                                  key=f"pf_type_{idx}")
         if cols[2].button("Remove", key=f"pf_remove_{idx}"):
             to_remove.append(idx)
-        # Update the field in session_state
         st.session_state.persona_fields[idx] = {"name": name.strip(), "type": typ}
 
-    # Apply removals (if any) after the loop
     if to_remove:
         st.session_state.persona_fields = [
             f for i, f in enumerate(st.session_state.persona_fields) if i not in to_remove
         ]
+        st.experimental_rerun()
 
-    # Add new persona field (insert before intro if present)
     if st.button("Add persona field"):
-        intro_indices = [i for i, f in enumerate(st.session_state.persona_fields) if f["name"] == "intro"]
-        if intro_indices:
-            st.session_state.persona_fields.insert(
-                intro_indices[0],
-                {"name": "", "type": "string"}
-            )
+        # insert before the fixed 'intro' field if present
+        intro_idx = next((i for i,f in enumerate(st.session_state.persona_fields) if f["name"]=="intro"), None)
+        new_field = {"name": "", "type": "string"}
+        if intro_idx is not None:
+            st.session_state.persona_fields.insert(intro_idx, new_field)
         else:
-            st.session_state.persona_fields.append({"name": "", "type": "string"})
+            st.session_state.persona_fields.append(new_field)
+        st.experimental_rerun()
 
     # Survey questions
     st.header("Survey Questions")
@@ -112,14 +110,16 @@ with tab_config:
             "user": user.strip(),
             "options": [o.strip() for o in opts.split(",") if o.strip()]
         }
-    # Apply question removals
+
     if q_to_remove:
         st.session_state.questions = [
             q for i, q in enumerate(st.session_state.questions) if i not in q_to_remove
         ]
-    # Add a new question
+        st.experimental_rerun()
+
     if st.button("Add survey question"):
         st.session_state.questions.append({"key": "", "system": "", "user": "", "options": []})
+        st.experimental_rerun()
 
 # —— 5) Schema & persona function —— #
 def build_persona_schema(fields):
