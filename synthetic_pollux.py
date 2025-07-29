@@ -213,7 +213,7 @@ def run_survey(personas, questions, segment):
                 # retry once with a simpler prompt
                 retry = call_chat(
                     [base, {"role":"system","content":"Answer with exactly one of: " + ", ".join(q["options"])}, {"role":"user","content":q["user"]}],
-                    temp=0.0
+                    temp=1
                 )
                 choice = parse_choice(getattr(retry, "content", ""), q["options"]) or q["options"][-1]
             scores[q["key"]].append(choice)
