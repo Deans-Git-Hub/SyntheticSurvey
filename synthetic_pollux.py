@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import os
 import json
+import re
 from collections import Counter, defaultdict
+import difflib
 
 import streamlit as st
 import pandas as pd
@@ -90,14 +92,10 @@ with tab_config:
                                  index=["string", "integer"].index(field["type"]),
                                  key=f"pf_type_{idx}")
 
-        # Update values immediately
         st.session_state.persona_fields[idx] = {"name": name.strip(), "type": typ}
-
-        # Remove button triggers callback and rerun
         cols[2].button("Remove", key=f"pf_remove_{idx}",
                        on_click=remove_persona_field, args=(idx,))
 
-    # Add persona field
     st.button("Add persona field", on_click=add_persona_field)
 
     # Survey questions
@@ -109,7 +107,6 @@ with tab_config:
         user = st.text_input("User prompt", q["user"], key=f"q_user_{idx}")
         opts = st.text_input("Options (comma-separated)", ", ".join(q["options"]), key=f"q_opts_{idx}")
 
-        # Update question in state
         st.session_state.questions[idx] = {
             "key": key.strip(),
             "system": sys.strip(),
@@ -117,11 +114,9 @@ with tab_config:
             "options": [o.strip() for o in opts.split(",") if o.strip()]
         }
 
-        # Remove question button
         st.button("Remove question", key=f"q_remove_{idx}",
                   on_click=remove_question, args=(idx,))
 
-    # Add survey question
     st.button("Add survey question", on_click=add_question)
 
 # —— 5) Schema & persona function —— #
@@ -169,14 +164,38 @@ def generate_personas(segment, n, schema):
                 break
     return personas
 
-# —— 6) Survey runner —— #
-def parse_choice(txt, options):
-    t = (txt or "").strip().lower()
-    for o in options:
-        if o.lower() in t:
-            return o
-    return options[-1]
+# —— 6) Improved parse_choice to reduce bias —— #
+def parse_choice(txt, options, fuzzy_cutoff=0.8):
+    """
+    Return the option whose whole-word appears earliest in txt.
+    If none match exactly, fall back to a fuzzy match above the cutoff.
+    Otherwise, return None so you can handle/retry unparsed cases.
+    """
+    text = (txt or "").lower()
 
+    # 1) exact whole-word matches with their position
+    matches = []
+    for opt in options:
+        pat = r"\b" + re.escape(opt.lower()) + r"\b"
+        m = re.search(pat, text)
+        if m:
+            matches.append((opt, m.start()))
+
+    if matches:
+        # 2) pick the earliest-occurring match
+        best_opt, _pos = min(matches, key=lambda x: x[1])
+        return best_opt
+
+    # 3) fuzzy fallback
+    lower_opts = [o.lower() for o in options]
+    fuzzy = difflib.get_close_matches(text, lower_opts, n=1, cutoff=fuzzy_cutoff)
+    if fuzzy:
+        return next(o for o in options if o.lower() == fuzzy[0])
+
+    # 4) no clear parse: return None so you can log or retry
+    return None
+
+# —— 7) Survey runner —— #
 def run_survey(personas, questions, segment):
     scores = {q["key"]: [] for q in questions}
     for p in personas:
@@ -184,11 +203,20 @@ def run_survey(personas, questions, segment):
         if segment:
             lines.append(f"Segment: {segment}")
         base = {"role":"system","content":"You are this persona:\n" + "\n".join(lines)}
+
         for q in questions:
             msg = call_chat(
                 [base, {"role":"system","content":q["system"]}, {"role":"user","content":q["user"]}]
             )
-            scores[q["key"]].append(parse_choice(getattr(msg, "content", ""), q["options"]))
+            choice = parse_choice(getattr(msg, "content", ""), q["options"])
+            if choice is None:
+                # retry once with a simpler prompt
+                retry = call_chat(
+                    [base, {"role":"system","content":"Answer with exactly one of: " + ", ".join(q["options"])}, {"role":"user","content":q["user"]}],
+                    temp=0.0
+                )
+                choice = parse_choice(getattr(retry, "content", ""), q["options"]) or q["options"][-1]
+            scores[q["key"]].append(choice)
     return scores
 
 with tab_results:
@@ -233,10 +261,8 @@ with tab_results:
         for p in personas:
             st.markdown(f"**{p.get('name','')}**: {p.get('intro','')}")
 
-        # —— 7) Key Findings Summary —— #
+        # —— 8) Key Findings Summary —— #
         st.header("Key Findings Summary")
-
-        # — Compute stats for each question
         stats = {}
         for q in questions:
             key  = q["key"]
@@ -246,11 +272,9 @@ with tab_results:
             pct    = {o: round(counts[o] / total * 100, 1) for o in opts}
             stats[key] = {"counts": counts, "percentages": pct}
 
-        # — Serialize personas & stats
         personas_json = json.dumps(personas, indent=2)
         stats_json    = json.dumps(stats, indent=2)
 
-        # — Build the chat prompt
         find_prompt = [
             {
                 "role": "system",
@@ -271,7 +295,6 @@ with tab_results:
             }
         ]
 
-        # — Declare the function schema
         find_fn = {
             "name": "generate_findings",
             "description": "Return an object with a 'summary' field containing multiple paragraphs of analysis.",
@@ -282,13 +305,11 @@ with tab_results:
             }
         }
 
-        # — Invoke as a data analyst with function calling
         find_resp = call_chat(
             find_prompt + [{"role": "system", "content": "You are a data analyst."}],
             fn=find_fn, fn_name="generate_findings", temp=1
         )
 
-        # — Extract and render each paragraph
         summary_text = json.loads(find_resp.function_call.arguments)["summary"]
         for paragraph in summary_text.split("\n\n"):
             st.write(paragraph)
