@@ -10,6 +10,32 @@ import pandas as pd
 import altair as alt
 import openai
 
+
+def check_password() -> bool:
+    """Returns True if the user-entered password matches."""
+    # Prompt for password input (masked)
+    pwd = st.text_input("🔒 Enter app password", type="password")
+    if not pwd:
+        # No input yet; just render the box
+        return False
+    if pwd == st.secrets["credentials"]["password"]:
+        # Correct! proceed
+        return True
+    # Wrong password entered
+    st.error("❌ Incorrect password. Try again.")
+    return False
+
+# Run the check at the top of your script
+if not check_password():
+    # Stop further execution until they get it right
+    st.stop()
+
+# ─── Protected Content ──────────────────────────────────────
+st.title("Welcome to Your Secure Streamlit App")
+st.write("This content is only visible after you enter the correct password.")
+# …the rest of your app…
+
+
 # —— 1) Setup —— #
 st.set_page_config(page_title="Synthetic Survey Engine", layout="wide")
 openai.api_key = os.getenv("OPENAI_API_KEY")
