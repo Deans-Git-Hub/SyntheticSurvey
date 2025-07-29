@@ -10,45 +10,62 @@ import pandas as pd
 import altair as alt
 import openai
 
-# ─── Page Config & Session State ───────────────────────────
+# ─── Page & Session State ───────────────────────────────────
 st.set_page_config(page_title="Secure App", layout="centered")
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "failed_login" not in st.session_state:
     st.session_state.failed_login = False
 
-# ─── Only inject login‑card CSS when not authenticated ───────
+# ─── Scoped Dark‑Card CSS ────────────────────────────────────
 if not st.session_state.authenticated:
     st.markdown(
         """
         <style>
+        /* Hide Streamlit’s white form box completely */
+        .login-card .stForm,
+        .login-card .stForm form {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            padding: 0;
+            margin: 0;
+        }
+        /* Your custom card */
         .login-card {
-            max-width: 380px;
+            max-width: 360px;
             margin: 6rem auto;
-            background: #000;
+            background: #111;
             color: #eee;
-            padding: 2.5rem;
-            border-radius: 16px;
-            box-shadow: 0 12px 32px rgba(0,0,0,0.8);
+            padding: 2rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
         }
         .login-header h2 {
-            margin: 0 0 1rem;
-            font-size: 1.75rem;
-            text-align: center;
+            margin: 0;
+            font-size: 1.6rem;
             color: #fff;
         }
-        /* Scope inputs & button inside the card */
+        /* Style inputs inside just your card */
         .login-card .stTextInput>div>div>input {
             background: #222 !important;
             color: #eee !important;
             border: 1px solid #444 !important;
+            border-radius: 6px !important;
+            padding: 0.5rem 0.75rem !important;
         }
+        /* Full‑width neon button */
         .login-card .stButton>button {
             width: 100%;
-            padding: 0.75rem;
+            margin-top: 0.5rem;
+            padding: 0.65rem;
             border: none;
-            border-radius: 8px;
-            font-size: 1.05rem;
+            border-radius: 6px;
+            font-size: 1rem;
             background: linear-gradient(90deg, #0f0, #0ff);
             color: #000;
             font-weight: bold;
@@ -56,10 +73,14 @@ if not st.session_state.authenticated:
         .login-card .stButton>button:hover {
             background: linear-gradient(90deg, #0ff, #0f0);
         }
+        /* Error styling scoped to card */
         .login-card .stAlert > div {
             background-color: #400;
             color: #f88;
             border: 1px solid #f00;
+            border-radius: 6px;
+            padding: 0.5rem;
+            margin-top: 0.5rem;
         }
         </style>
         """,
@@ -79,8 +100,8 @@ def login():
             type="password",
             help="Enter the secret password to access the app."
         )
-        submit = st.form_submit_button("Unlock")
-        if submit:
+        submitted = st.form_submit_button("Unlock")
+        if submitted:
             if pwd == st.secrets["credentials"]["password"]:
                 st.session_state.authenticated = True
             else:
@@ -90,14 +111,15 @@ def login():
         st.error("❌ Incorrect password — please try again.")
     st.markdown("</div>", unsafe_allow_html=True)
 
-# ─── Show login or protected content ────────────────────────
+# ─── Render or Halt ────────────────────────────────────────
 if not st.session_state.authenticated:
     login()
     st.stop()
 
-# ─── Protected Content (normal styling) ────────────────────
+# ─── Protected Content ─────────────────────────────────────
 st.success("✅ Access granted!")
-st.title("Welcome to SurveySynth!")
+st.title("Welcome to SurveySynth™!")
+
 
 
 
