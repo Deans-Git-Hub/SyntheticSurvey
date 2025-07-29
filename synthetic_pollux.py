@@ -46,14 +46,32 @@ if "persona_fields" not in st.session_state:
         {"name": "urbanicity", "type": "string"},
         {"name": "education", "type": "string"},
         {"name": "occupation", "type": "string"},
-        {"name": "intro", "type": "string"},  # fixed, not editable
+        {"name": "intro", "type": "string"},  # fixed field
     ]
 if "questions" not in st.session_state:
     st.session_state.questions = [
         {"key":"alignment","system":"Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"Is Pepsi easily accessible?","options":["Yes","No"]},
-        {"key":"interest","system":"Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"At what time do you drink soda?","options":["Morning", "Afternoon", "Evening"]},
+        {"key":"interest","system":"Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"At what time do you drink soda?","options":["Morning","Afternoon","Evening"]},
         {"key":"timeline","system":"Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.","user":"How often do you drink soda?","options":["Frequently","Occasionally","Rarely","Never"]},
     ]
+
+# —— 3.1) Callbacks for add/remove —— #
+def remove_persona_field(idx):
+    st.session_state.persona_fields.pop(idx)
+
+def add_persona_field():
+    intro_idx = next((i for i, f in enumerate(st.session_state.persona_fields) if f["name"] == "intro"), None)
+    new_field = {"name": "", "type": "string"}
+    if intro_idx is not None:
+        st.session_state.persona_fields.insert(intro_idx, new_field)
+    else:
+        st.session_state.persona_fields.append(new_field)
+
+def remove_question(idx):
+    st.session_state.questions.pop(idx)
+
+def add_question():
+    st.session_state.questions.append({"key": "", "system": "", "user": "", "options": []})
 
 # —— 4) Layout with tabs —— #
 tab_config, tab_results = st.tabs(["Configuration", "Results"])
@@ -61,49 +79,37 @@ tab_config, tab_results = st.tabs(["Configuration", "Results"])
 with tab_config:
     # Persona attributes
     st.header("Persona Attributes")
-    to_remove = []
     for idx, field in enumerate(st.session_state.persona_fields):
-        # Do not allow editing/removal of the intro field
         if field["name"] == "intro":
             st.markdown("**intro** (fixed field for persona intro text)")
             continue
 
         cols = st.columns([4, 2, 1])
         name = cols[0].text_input("Field name", field["name"], key=f"pf_name_{idx}")
-        typ  = cols[1].selectbox("Type", ["string","integer"],
-                                 index=["string","integer"].index(field["type"]),
+        typ  = cols[1].selectbox("Type", ["string", "integer"],
+                                 index=["string", "integer"].index(field["type"]),
                                  key=f"pf_type_{idx}")
-        if cols[2].button("Remove", key=f"pf_remove_{idx}"):
-            to_remove.append(idx)
+
+        # Update values immediately
         st.session_state.persona_fields[idx] = {"name": name.strip(), "type": typ}
 
-    if to_remove:
-        st.session_state.persona_fields = [
-            f for i, f in enumerate(st.session_state.persona_fields) if i not in to_remove
-        ]
-        st.experimental_rerun()
+        # Remove button triggers callback and rerun
+        cols[2].button("Remove", key=f"pf_remove_{idx}",
+                       on_click=remove_persona_field, args=(idx,))
 
-    if st.button("Add persona field"):
-        # insert before the fixed 'intro' field if present
-        intro_idx = next((i for i,f in enumerate(st.session_state.persona_fields) if f["name"]=="intro"), None)
-        new_field = {"name": "", "type": "string"}
-        if intro_idx is not None:
-            st.session_state.persona_fields.insert(intro_idx, new_field)
-        else:
-            st.session_state.persona_fields.append(new_field)
-        st.experimental_rerun()
+    # Add persona field
+    st.button("Add persona field", on_click=add_persona_field)
 
     # Survey questions
     st.header("Survey Questions")
-    q_to_remove = []
     for idx, q in enumerate(st.session_state.questions):
         st.markdown(f"**Question {idx+1}**")
         key  = st.text_input("Key", q["key"], key=f"q_key_{idx}")
         sys  = st.text_input("System prompt", q["system"], key=f"q_sys_{idx}")
         user = st.text_input("User prompt", q["user"], key=f"q_user_{idx}")
         opts = st.text_input("Options (comma-separated)", ", ".join(q["options"]), key=f"q_opts_{idx}")
-        if st.button("Remove question", key=f"q_remove_{idx}"):
-            q_to_remove.append(idx)
+
+        # Update question in state
         st.session_state.questions[idx] = {
             "key": key.strip(),
             "system": sys.strip(),
@@ -111,15 +117,12 @@ with tab_config:
             "options": [o.strip() for o in opts.split(",") if o.strip()]
         }
 
-    if q_to_remove:
-        st.session_state.questions = [
-            q for i, q in enumerate(st.session_state.questions) if i not in q_to_remove
-        ]
-        st.experimental_rerun()
+        # Remove question button
+        st.button("Remove question", key=f"q_remove_{idx}",
+                  on_click=remove_question, args=(idx,))
 
-    if st.button("Add survey question"):
-        st.session_state.questions.append({"key": "", "system": "", "user": "", "options": []})
-        st.experimental_rerun()
+    # Add survey question
+    st.button("Add survey question", on_click=add_question)
 
 # —— 5) Schema & persona function —— #
 def build_persona_schema(fields):
