@@ -48,13 +48,7 @@ if not st.session_state.authenticated:
     st.stop()
 
 # 4) PROTECTED CONTENT (only reached after st.rerun() on a successful login)
-st.title("🔓 Welcome to the Protected App!")
-st.write(
-    """
-    You’ve successfully unlocked the app—no login box in sight.
-    Now you can put all your secret tools, visualizations,
-    or any other content here.
-    """
+st.title("Welcome to SurveySynth!")
 )
 
 
