@@ -41,24 +41,7 @@ if not st.session_state.authenticated:
             st.error("❌ Incorrect password.")
     st.stop()
 
-# ——— 2) OpenAI helper ——————————————————————————
-def call_chat(messages, fn=None, fn_name=None, temp=1.0):
-    payload = {"model": "o4-mini", "messages": messages, "temperature": temp}
-    if fn:
-        payload["functions"] = [fn]
-        payload["function_call"] = {"name": fn_name}
-    return openai.chat.completions.create(**payload).choices[0].message
-
-# ——— 3) Sidebar controls ————————————————————————
-st.sidebar.header("Survey Configuration")
-industry   = st.sidebar.text_input("Industry name", value="Pepsi")
-segment    = st.sidebar.text_input("Persona segment (optional)", value="Health Buffs")
-n_personas = st.sidebar.number_input(
-    "Number of personas", min_value=5, max_value=50, value=10, step=5
-)
-run_button = st.sidebar.button("Run survey")
-
-# ——— 4) Session‑state defaults ————————————————————
+# ——— 2) Session‐state defaults ————————————————————
 if "persona_fields" not in st.session_state:
     st.session_state.persona_fields = [
         {"name": "name", "type": "string"},
@@ -96,6 +79,23 @@ if "questions" not in st.session_state:
         },
     ]
 
+# ——— 3) OpenAI helper ——————————————————————————
+def call_chat(messages, fn=None, fn_name=None, temp=1.0):
+    payload = {"model": "o4-mini", "messages": messages, "temperature": temp}
+    if fn:
+        payload["functions"] = [fn]
+        payload["function_call"] = {"name": fn_name}
+    return openai.chat.completions.create(**payload).choices[0].message
+
+# ——— 4) Sidebar controls ————————————————————————
+st.sidebar.header("Survey Configuration")
+industry   = st.sidebar.text_input("Industry name", value="Pepsi")
+segment    = st.sidebar.text_input("Persona segment (optional)", value="Health Buffs")
+n_personas = st.sidebar.number_input(
+    "Number of personas", min_value=5, max_value=50, value=10, step=5
+)
+run_button = st.sidebar.button("Run survey")
+
 # ——— 5) Callbacks for add/remove rows ————————————
 def remove_persona_field(idx):
     st.session_state.persona_fields.pop(idx)
@@ -125,7 +125,7 @@ with tab_config:
         c1, c2, c3 = st.columns([4, 2, 1])
         name = c1.text_input("Field name", f["name"], key=f"pf_name_{i}")
         typ  = c2.selectbox(
-            "Type", ["string","integer"],
+            "Type", ["string", "integer"],
             index=0 if f["type"]=="string" else 1,
             key=f"pf_type_{i}"
         )
@@ -221,14 +221,12 @@ def run_survey(personas, questions, segment):
     batch_fn = make_batch_fn(questions)
 
     def ask_persona(p):
-        # build persona context
         lines = [f"{f['name'].capitalize()}: {p.get(f['name'],'')}"
                  for f in st.session_state.persona_fields]
         if segment:
             lines.append(f"Segment: {segment}")
         base = {"role":"system", "content":"You are this persona:\n" + "\n".join(lines)}
 
-        # build messages
         messages = [base] + [
             {"role":"system", "content": q["system"]} for q in questions
         ]
@@ -236,16 +234,12 @@ def run_survey(personas, questions, segment):
                               for i,q in enumerate(questions))
         messages.append({"role":"user", "content": user_text})
 
-        # single API call
         resp    = call_chat(messages, fn=batch_fn, fn_name="answer_survey")
-        answers = json.loads(resp.function_call.arguments)
-        return answers
+        return json.loads(resp.function_call.arguments)
 
-    # run in parallel
     with ThreadPoolExecutor(max_workers=min(10, len(personas))) as exe:
         futures = {exe.submit(ask_persona, p): idx for idx, p in enumerate(personas)}
         for fut in as_completed(futures):
-            idx = futures[fut]
             answers = fut.result()
             for q in questions:
                 scores[q["key"]].append(answers.get(q["key"]))
@@ -266,7 +260,7 @@ with tab_results:
         st.title("Synthetic Survey Results")
         total = len(personas)
 
-        # Per-question charts & tables
+        # Charts & tables
         for q in questions:
             dist = Counter(scores[q["key"]])
             df = pd.DataFrame({
@@ -291,7 +285,6 @@ with tab_results:
         # Personas & intros
         st.header("Generated Personas")
         st.dataframe(pd.DataFrame(personas))
-
         st.header("Persona Intros")
         for p in personas:
             st.markdown(f"**{p.get('name','')}**: {p.get('intro','')}")
