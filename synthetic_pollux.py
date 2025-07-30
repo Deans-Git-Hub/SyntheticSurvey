@@ -12,53 +12,31 @@ import openai
 
 import streamlit as st
 
-# ─── App & State Setup ───────────────────────────────────────
+# ─── App Setup & State ───────────────────────────────────────
 st.set_page_config(page_title="Secure App", layout="centered")
 st.session_state.setdefault("authenticated", False)
 st.session_state.setdefault("login_failed", False)
 
-def check_password(pwd):
-    if pwd == st.secrets["credentials"]["password"]:
+# ─── Password Check ──────────────────────────────────────────
+def check_password():
+    if st.session_state.pwd == st.secrets["credentials"]["password"]:
         st.session_state.authenticated = True
         st.session_state.login_failed = False
     else:
         st.session_state.login_failed = True
 
-# ─── LOGIN PROMPT ────────────────────────────────────────────
+# ─── LOGIN SCREEN ────────────────────────────────────────────
 if not st.session_state.authenticated:
-    # 1) Open a fixed-width container
-    st.markdown(
-        """
-        <div style="
-          max-width: 400px;
-          margin: 6rem auto;
-          padding: 1.5rem;
-          background: #111;
-          border-radius: 8px;
-          color: #eee;
-        ">
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # 2) Heading
-    st.markdown("<h2 style='margin-bottom:1rem;'>🔒 Secure Login</h2>", unsafe_allow_html=True)
-
-    # 3) Password input & button (always present)
-    pwd = st.text_input("Password", type="password", key="pwd")
-    clicked = st.button("Unlock")
-
-    if clicked:
-        check_password(pwd)
-
-    # 4) Error placeholder (always takes up one line)
-    if st.session_state.login_failed:
-        st.error("❌ Incorrect password — please try again.")
-    else:
-        st.write("")  # reserve that spot
-
-    # 5) Close container & halt
-    st.markdown("</div>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("## 🔒 Secure Login")
+        # one text_input, one button
+        pwd = st.text_input("Password", type="password", key="pwd")
+        if st.button("Unlock"):
+            check_password()
+        # error feedback
+        if st.session_state.login_failed:
+            st.error("❌ Incorrect password — please try again.")
     st.stop()
 
 # ─── PROTECTED APP ───────────────────────────────────────────
