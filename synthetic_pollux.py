@@ -12,45 +12,50 @@ import openai
 
 
 
+
 st.set_page_config(page_title="Protected App")
 
-# Load password from secrets
+# 1) Load password from secrets (make sure you have password = "Synthetic!" in your secrets.toml)
 PASSWORD = st.secrets.get("password")
 if PASSWORD is None:
     st.error(
-        "⚠️ No `password` found in secrets. "
-        "Please add `password = \"Synthetic!\"` to .streamlit/secrets.toml "
-        "or to your Streamlit Cloud Secrets."
+        "⚠️ No `password` found in secrets!\n"
+        "Add\n\n  password = \"Synthetic!\"\n\n"
+        "to your .streamlit/secrets.toml or in your Streamlit Cloud settings."
     )
     st.stop()
 
-# Initialize session state
+# 2) Initialize session state
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# --- LOGIN FORM ---
+# 3) LOGIN FORM (only runs if not already authenticated)
 if not st.session_state.authenticated:
-    st.title("🔐 Enter Password to Access")
+    st.title("🔐 Please log in")
     with st.form("login_form"):
         pw = st.text_input("Password", type="password", placeholder="••••••")
-        unlock = st.form_submit_button("Unlock")
-    if unlock:
+        submit = st.form_submit_button("Unlock")
+
+    if submit:
         if pw == PASSWORD:
             st.session_state.authenticated = True
-            # No need to call rerun — Streamlit already reran when you hit “Unlock”
         else:
             st.error("❌ Incorrect password.")
 
-# --- PROTECTED CONTENT ---
-if st.session_state.authenticated:
-    st.title("🔓 Welcome to the Protected App!")
-    st.write(
-        """
-        You’ve successfully unlocked the app.  
-        Now you can put all your secret tools, visualizations, or
-        any other content here.
-        """
-    )
+    # If still not authenticated, stop here so nothing else renders
+    if not st.session_state.authenticated:
+        st.stop()
+
+# 4) PROTECTED CONTENT
+st.title("🔓 Welcome to the Protected App!")
+st.write(
+    """
+    You’ve successfully unlocked the app.  
+    Now you can put all your secret tools, visualizations, or
+    any other content here.
+    """
+)
+
 
 
 
