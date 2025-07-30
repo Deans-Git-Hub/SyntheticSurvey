@@ -10,6 +10,64 @@ import pandas as pd
 import altair as alt
 import openai
 
+import streamlit as st
+
+# ─── App & State Setup ───────────────────────────────────────
+st.set_page_config(page_title="Secure App", layout="centered")
+st.session_state.setdefault("authenticated", False)
+st.session_state.setdefault("login_failed", False)
+
+def check_password(pwd):
+    if pwd == st.secrets["credentials"]["password"]:
+        st.session_state.authenticated = True
+        st.session_state.login_failed = False
+    else:
+        st.session_state.login_failed = True
+
+# ─── LOGIN SCREEN ────────────────────────────────────────────
+if not st.session_state.authenticated:
+    # Center in three columns
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown("## 🔒 Secure Login")
+        
+        # Reserve a fixed-width form so nothing shifts
+        st.markdown(
+            """
+            <style>
+            .fixed-form > form {
+              max-width: 400px;
+              margin: auto;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # Everything inside one form
+        with st.form(key="login_form", clear_on_submit=False):
+            pwd = st.text_input(
+                "Password",
+                type="password",
+                key="pwd_input",
+                help="Press Enter or click Unlock"
+            )
+            submit = st.form_submit_button("Unlock")
+
+            if submit:
+                check_password(pwd)
+
+        # Error message if needed
+        if st.session_state.login_failed:
+            st.error("❌ Incorrect password — please try again.")
+
+    # Stop until authenticated
+    st.stop()
+
+# ─── PROTECTED APP ───────────────────────────────────────────
+st.success("✅ Access granted!")
+st.title("Welcome to Your Secure Streamlit App")
+st.write("…your confidential content here…")
 
 
 
