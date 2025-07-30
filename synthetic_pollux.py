@@ -12,40 +12,29 @@ import openai
 
 
 
-
+import time  # needed for the fallback rerun-hack
 
 st.set_page_config(page_title="Protected App")
 
-# 1) Load your secret
+# 1) Load password from secrets
 PASSWORD = st.secrets.get("password")
 if PASSWORD is None:
     st.error(
-        "⚠️ No `password` found!\n\n"
-        "Please add in `.streamlit/secrets.toml`:\n\n"
+        "⚠️ No `password` in secrets!\n"
+        "Add in `.streamlit/secrets.toml`:\n\n"
         "  password = \"Synthetic!\"\n\n"
         "or set it in your Streamlit Cloud Secrets."
     )
     st.stop()
 
-# 2) Session‑state flag
+# 2) Init session-state flag
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# 3) Branch on authentication
-if st.session_state.authenticated:
-    # ─── PROTECTED CONTENT ─────────────────────────────────────────────
-    st.title("🔓 Welcome to your protected app!")
-    st.write(
-        """
-        You’ve successfully unlocked the app.  
-        Now you can put all your secret tools, charts, or whatever else here—
-        and *you’ll never see the login form again* until you restart the session.
-        """
-    )
-
-else:
-    # ─── LOGIN FORM ────────────────────────────────────────────────────
+# 3) LOGIN FORM (only if not authenticated)
+if not st.session_state.authenticated:
     st.title("🔐 Please log in")
+
     with st.form("login_form"):
         pw = st.text_input("Password", type="password", placeholder="••••••")
         submit = st.form_submit_button("Unlock")
@@ -53,10 +42,29 @@ else:
     if submit:
         if pw == PASSWORD:
             st.session_state.authenticated = True
-            # Immediately rerun so the next pass goes into the “authenticated” branch.
-            st.experimental_rerun()
+            # force an immediate rerun so the login block is skipped next pass
+            try:
+                st.experimental_rerun()
+            except AttributeError:
+                # fallback for older Streamlit versions:
+                st.experimental_set_query_params(_rerun=int(time.time()))
         else:
             st.error("❌ Incorrect password.")
+
+    # halt here until authenticated
+    if not st.session_state.authenticated:
+        st.stop()
+
+# 4) PROTECTED CONTENT
+st.title("🔓 Welcome to the Protected App!")
+st.write(
+    """
+    You’ve successfully unlocked the app.  
+    Now you can put all your secret tools, visualizations, or
+    any other content here—*and the login form will no longer appear*.
+    """
+)
+
 
 
 
