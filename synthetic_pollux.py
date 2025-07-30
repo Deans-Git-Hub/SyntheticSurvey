@@ -10,45 +10,7 @@ import pandas as pd
 import altair as alt
 import openai
 
-import streamlit as st
 
-# ─── App & State Setup ───────────────────────────────────────
-st.set_page_config(page_title="Secure App", layout="centered")
-st.session_state.setdefault("authenticated", False)
-st.session_state.setdefault("login_failed", False)
-
-def check_password():
-    if st.session_state.pwd == st.secrets["credentials"]["password"]:
-        st.session_state.authenticated = True
-        st.session_state.login_failed = False
-    else:
-        st.session_state.login_failed = True
-
-# ─── LOGIN PROMPT ────────────────────────────────────────────
-if not st.session_state.authenticated:
-    # Center everything in the middle column
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("## 🔒 Secure Login")
-        pwd = st.text_input(
-            "Password",
-            type="password",
-            key="pwd",
-            on_change=check_password,
-            help="Press Enter or click Unlock",
-        )
-        if st.button("Unlock"):
-            check_password()
-
-        if st.session_state.login_failed:
-            st.error("❌ Incorrect password — please try again.")
-
-    # Stop here until successful login
-    st.stop()
-
-# ─── PROTECTED APP ───────────────────────────────────────────
-st.success("✅ Access granted")
-st.title("Welcome to SurveySynth!")
 
 
 
