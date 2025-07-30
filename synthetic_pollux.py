@@ -86,9 +86,23 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
 
 # ——— 4) Sidebar controls ————————————————————————
 st.sidebar.header("Survey Configuration")
-industry   = st.sidebar.text_input("Industry name", value="Pepsi")
-segment    = st.sidebar.text_input("Persona segment (optional)", value="Health Buffs")
-n_personas = st.sidebar.number_input("Number of personas", min_value=5, max_value=50, value=10, step=5)
+industry = st.sidebar.text_input(
+    "Industry name",
+    value="Pepsi"
+)
+segment = st.sidebar.text_input(
+    "Persona segment (optional)",
+    value="Health Buffs",
+    help="Specify an optional subgroup label to guide persona generation (e.g., 'Health Buffs')."
+)
+n_personas = st.sidebar.number_input(
+    "Number of personas",
+    min_value=5,
+    max_value=50,
+    value=10,
+    step=5,
+    help="How many synthetic personas to generate for the survey (between 5 and 50)."
+)
 run_button = st.sidebar.button("Run survey")
 
 # ——— 5) Callbacks for add/remove rows ————————————
@@ -212,6 +226,7 @@ def make_batch_fn(questions):
 
 # ——— 9) Parallelized batched survey runner —————————
 def run_survey(personas, questions, segment):
+    # copy needed data out of session_state to avoid threading issues
     fields = list(st.session_state.persona_fields)
     qlist  = list(questions)
 
@@ -240,9 +255,12 @@ def run_survey(personas, questions, segment):
 
     return scores
 
-# ——— 10) Results tab ————————————————————————————
+# ——— 10) Results tab ————————————————————————————
 with tab_results:
     if run_button:
+        # visual feedback immediately after click
+        st.info("🚀 Survey started — please wait!")
+
         schema     = build_persona_schema(st.session_state.persona_fields)
         questions  = st.session_state.questions
 
@@ -254,7 +272,7 @@ with tab_results:
         st.title("Synthetic Survey Results")
         total = len(personas)
 
-        # Per-question charts & tables
+        # Per-question charts & tables, with extra spacing
         for q in questions:
             dist = Counter(scores[q["key"]])
             df = pd.DataFrame({
@@ -275,10 +293,14 @@ with tab_results:
             )
             st.altair_chart(chart, use_container_width=True)
             st.table(df.set_index("Option"))
+            # extra blank lines for spacing between charts
+            st.write("")
+            st.write("")
 
         # Personas & intros
         st.header("Generated Personas")
         st.dataframe(pd.DataFrame(personas))
+
         st.header("Persona Intros")
         for p in personas:
             st.markdown(f"**{p.get('name','')}**: {p.get('intro','')}")
@@ -329,7 +351,6 @@ with tab_results:
         )
         summary = json.loads(find_resp.function_call.arguments)["summary"]
 
-        # Add a title for Key Findings
         st.header("Key Findings")
         for para in summary.split("\n\n"):
             st.write(para)
