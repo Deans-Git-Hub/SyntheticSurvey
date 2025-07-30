@@ -11,27 +11,24 @@ import altair as alt
 import openai
 
 
-
-import time  # needed for the fallback rerun-hack
-
 st.set_page_config(page_title="Protected App")
 
 # 1) Load password from secrets
 PASSWORD = st.secrets.get("password")
 if PASSWORD is None:
     st.error(
-        "⚠️ No `password` in secrets!\n"
-        "Add in `.streamlit/secrets.toml`:\n\n"
-        "  password = \"Synthetic!\"\n\n"
+        "⚠️ No `password` found!\n\n"
+        "Please add in `.streamlit/secrets.toml`:\n\n"
+        "    password = \"Synthetic!\"\n\n"
         "or set it in your Streamlit Cloud Secrets."
     )
     st.stop()
 
-# 2) Init session-state flag
+# 2) Initialize our “logged‑in” flag
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# 3) LOGIN FORM (only if not authenticated)
+# 3) If not authenticated → show *only* the login form and then stop()
 if not st.session_state.authenticated:
     st.title("🔐 Please log in")
 
@@ -42,28 +39,25 @@ if not st.session_state.authenticated:
     if submit:
         if pw == PASSWORD:
             st.session_state.authenticated = True
-            # force an immediate rerun so the login block is skipped next pass
-            try:
-                st.experimental_rerun()
-            except AttributeError:
-                # fallback for older Streamlit versions:
-                st.experimental_set_query_params(_rerun=int(time.time()))
+            # *** Right here we force a rerun so that the top-of-script
+            #     `if not authenticated` block is *not* executed again. ***
+            st.experimental_rerun()
         else:
             st.error("❌ Incorrect password.")
 
-    # halt here until authenticated
-    if not st.session_state.authenticated:
-        st.stop()
+    # Prevent anything below from rendering until after a successful login
+    st.stop()
 
-# 4) PROTECTED CONTENT
+# 4) PROTECTED CONTENT (only reached once authenticated == True)
 st.title("🔓 Welcome to the Protected App!")
 st.write(
     """
-    You’ve successfully unlocked the app.  
+    You’ve successfully unlocked the app—no login box in sight.
     Now you can put all your secret tools, visualizations, or
-    any other content here—*and the login form will no longer appear*.
+    any other content here.
     """
 )
+
 
 
 
