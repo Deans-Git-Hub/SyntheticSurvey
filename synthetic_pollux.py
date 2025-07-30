@@ -10,26 +10,41 @@ import pandas as pd
 import altair as alt
 import openai
 
-# save as app.py and run with: streamlit run app.py
-
+# app.py
 import streamlit as st
 
-st.set_page_config(page_title="Password Unlock")
+st.set_page_config(page_title="Protected App")
 
-st.title("🔐 Enter Password")
+# Initialize session state
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
-# Use a form so that pressing Enter submits
-with st.form("unlock_form"):
-    password = st.text_input("Password", type="password", placeholder="••••••")
-    unlock = st.form_submit_button("Unlock")
+# --- LOGIN PAGE ---
+if not st.session_state.authenticated:
+    st.title("🔐 Enter Password to Access")
 
-if unlock:
-    if password == "secret":  # ← swap out "secret" for your real password check
-        st.success("🔓 Unlocked!")
-        # Put your protected content here:
-        st.write("Welcome! Here's your secured content…")
-    else:
-        st.error("❌ Incorrect password.")
+    # A form so pressing Enter submits
+    with st.form("login_form"):
+        pw = st.text_input("Password", type="password", placeholder="••••••")
+        unlock = st.form_submit_button("Unlock")
+
+    if unlock:
+        if pw == "secret":   # ← replace with your real check
+            st.session_state.authenticated = True
+            st.experimental_rerun()  # reload the script, now showing protected content
+        else:
+            st.error("❌ Incorrect password.")
+    # Stop here – nothing below this runs until authenticated
+    st.stop()
+
+# --- PROTECTED CONTENT ---
+st.title("🔓 Welcome to the Protected App!")
+st.write("""
+You’ve successfully unlocked the app.  
+Now you can put all your secret tools, visualizations, or
+any other content here.
+""")
+
 
 
 
