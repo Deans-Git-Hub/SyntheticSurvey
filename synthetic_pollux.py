@@ -10,120 +10,56 @@ import pandas as pd
 import altair as alt
 import openai
 
-# ─── Page Config & Session State ───────────────────────────
+# ─── Page & Session Setup ───────────────────────────────────
 st.set_page_config(page_title="Secure App", layout="centered")
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "login_failed" not in st.session_state:
     st.session_state.login_failed = False
 
-# ─── LOCKED: Inject Overlay + Card CSS ──────────────────────
+# ─── Authentication Logic ────────────────────────────────────
+def check_password():
+    pwd = st.session_state.pwd_input
+    if pwd == st.secrets["credentials"]["password"]:
+        st.session_state.authenticated = True
+        st.session_state.login_failed = False
+    else:
+        st.session_state.login_failed = True
+
+# ─── Show Login Card ─────────────────────────────────────────
 if not st.session_state.authenticated:
-    st.markdown(
-        """
-        <style>
-        /* Full‑screen overlay */
-        .overlay {
-          position: fixed;
-          top: 0; left: 0;
-          width: 100vw; height: 100vh;
-          background: rgba(0,0,0,0.6);
-          backdrop-filter: blur(6px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 9999;
-        }
-        /* Card container */
-        .card {
-          width: 360px;
-          background: #111;
-          padding: 2rem 1.5rem;
-          border-radius: 16px;
-          box-shadow: 0 8px 24px rgba(0,0,0,0.8);
-          font-family: 'Inter', sans-serif;
-        }
-        .card h2 {
-          color: #eee;
-          text-align: center;
-          margin-bottom: 1rem;
-        }
-        /* Input styling */
-        .card .stTextInput>div>div>input {
-          background: #222 !important;
-          color: #eee !important;
-          border: 1px solid #444 !important;
-          border-radius: 8px !important;
-          padding: 0.75rem !important;
-          font-size: 1rem;
-        }
-        /* Button styling + hover pop */
-        .card .stButton>button {
-          width: 100%;
-          margin-top: 1rem;
-          padding: 0.7rem;
-          border: none;
-          border-radius: 8px;
-          background: linear-gradient(90deg, #0f0, #0ff);
-          color: #000;
-          font-weight: bold;
-          transition: transform 0.15s ease;
-        }
-        .card .stButton>button:hover {
-          transform: scale(1.04);
-        }
-        /* Error message */
-        .card .error {
-          background: #400;
-          color: #f88;
-          border: 1px solid #f00;
-          border-radius: 6px;
-          padding: 0.5rem;
-          margin-top: 1rem;
-          text-align: center;
-        }
-        /* Autofocus shim */
-        </style>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Overlay + Card Markup
-    st.markdown('<div class="overlay"><div class="card">', unsafe_allow_html=True)
-    # Lock Icon + Heading
-    st.markdown(
-        """
-        <div style="text-align:center; margin-bottom:0.5rem;">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="#eee">
-            <path d="M12 17a2 2 0 1 0 .001-3.999A2 2 0 0 0 12 17zm6-6v-3a6 6 0 0 0-12 0v3H4v10h16V11h-2zm-8-3a4 4 0 0 1 8 0v3H10v-3z"/>
-          </svg>
-        </div>
-        <h2>Secure Login</h2>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Native Streamlit Inputs
-    pwd = st.text_input("Password", type="password", key="pwd_input")
-    if st.button("Unlock"):
-        if pwd == st.secrets["credentials"]["password"]:
-            st.session_state.authenticated = True
-            st.session_state.login_failed = False
-        else:
-            st.session_state.login_failed = True
-
-    # Error only after failure
-    if st.session_state.login_failed:
-        st.markdown('<div class="error">❌ Incorrect password — please try again.</div>', unsafe_allow_html=True)
-
-    st.markdown("</div></div>", unsafe_allow_html=True)
-    # Halt everything until auth succeeds
+    # center a container
+    cols = st.columns([1, 2, 1])
+    with cols[1]:
+        st.markdown(
+            """
+            <div style="
+              background:#111; padding:2rem; border-radius:12px;
+              box-shadow:0 4px 16px rgba(0,0,0,0.6);
+              text-align:center;
+            ">
+              <h2 style="color:#eee; margin-bottom:1rem;">🔒 Secure Login</h2>
+            </div>
+            """, unsafe_allow_html=True
+        )
+        # use a single text_input with on_change so Enter immediately runs check
+        st.text_input(
+            "Password", 
+            type="password", 
+            key="pwd_input", 
+            on_change=check_password,
+            help="Press Enter to submit"
+        )
+        st.button("Unlock", on_click=check_password)
+        if st.session_state.login_failed:
+            st.error("❌ Incorrect password — please try again.")
     st.stop()
 
-# ─── UNLOCKED: Your Normal Streamlit App ────────────────────
-st.success("✅ Access granted")
-st.title("Welcome to SurveySynth!")
+# ─── Protected App ───────────────────────────────────────────
+st.success("✅ Access granted!")
+st.title("Welcome to Your Secure Streamlit App")
+st.write("Here’s the confidential content…")
+
 
 
 
