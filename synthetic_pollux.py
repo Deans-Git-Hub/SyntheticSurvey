@@ -3,13 +3,14 @@ import json
 import re
 import difflib
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import streamlit as st
 import pandas as pd
 import altair as alt
 import openai
 
-# ——— 0) Page config & OpenAI key —————————————
+# ——— 0) Page config & OpenAI key —————————————————————
 st.set_page_config(page_title="Synthetic Survey Engine", layout="wide")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -100,7 +101,6 @@ def remove_persona_field(idx):
     st.session_state.persona_fields.pop(idx)
 
 def add_persona_field():
-    # insert new field just before "intro"
     intro_idx = next(
         (i for i,f in enumerate(st.session_state.persona_fields) if f["name"]=="intro"), 
         len(st.session_state.persona_fields)
@@ -201,7 +201,7 @@ def generate_personas(segment, n, schema):
                 break
     return personas
 
-# ——— 8) Batch function schema & runner ——————————
+# ——— 8) Batch function schema —————————————————————
 def make_batch_fn(questions):
     return {
         "name": "answer_survey",
@@ -215,12 +215,13 @@ def make_batch_fn(questions):
         }
     }
 
+# ——— 9) Parallelized batched survey runner —————————
 def run_survey(personas, questions, segment):
     scores   = {q["key"]: [] for q in questions}
     batch_fn = make_batch_fn(questions)
 
-    for p in personas:
-        # persona context
+    def ask_persona(p):
+        # build persona context
         lines = [f"{f['name'].capitalize()}: {p.get(f['name'],'')}"
                  for f in st.session_state.persona_fields]
         if segment:
@@ -238,14 +239,20 @@ def run_survey(personas, questions, segment):
         # single API call
         resp    = call_chat(messages, fn=batch_fn, fn_name="answer_survey")
         answers = json.loads(resp.function_call.arguments)
+        return answers
 
-        # collect answers
-        for q in questions:
-            scores[q["key"]].append(answers.get(q["key"]))
+    # run in parallel
+    with ThreadPoolExecutor(max_workers=min(10, len(personas))) as exe:
+        futures = {exe.submit(ask_persona, p): idx for idx, p in enumerate(personas)}
+        for fut in as_completed(futures):
+            idx = futures[fut]
+            answers = fut.result()
+            for q in questions:
+                scores[q["key"]].append(answers.get(q["key"]))
 
     return scores
 
-# ——— 9) Results tab ————————————————————————————
+# ——— 10) Results tab ————————————————————————————
 with tab_results:
     if run_button:
         schema    = build_persona_schema(st.session_state.persona_fields)
@@ -253,7 +260,7 @@ with tab_results:
 
         with st.spinner("Generating personas…"):
             personas = generate_personas(segment, n_personas, schema)
-        with st.spinner("Running survey…"):
+        with st.spinner("Running survey in parallel…"):
             scores = run_survey(personas, questions, segment)
 
         st.title("Synthetic Survey Results")
@@ -336,4 +343,3 @@ with tab_results:
         summary = json.loads(find_resp.function_call.arguments)["summary"]
         for para in summary.split("\n\n"):
             st.write(para)
-
