@@ -10,39 +10,27 @@ import pandas as pd
 import altair as alt
 import openai
 
+# save as app.py and run with: streamlit run app.py
+
 import streamlit as st
 
-# ─── App Setup & State ───────────────────────────────────────
-st.set_page_config(page_title="Secure App", layout="centered")
-st.session_state.setdefault("authenticated", False)
-st.session_state.setdefault("login_failed", False)
+st.set_page_config(page_title="Password Unlock")
 
-# ─── Password Check ──────────────────────────────────────────
-def check_password():
-    if st.session_state.pwd == st.secrets["credentials"]["password"]:
-        st.session_state.authenticated = True
-        st.session_state.login_failed = False
+st.title("🔐 Enter Password")
+
+# Use a form so that pressing Enter submits
+with st.form("unlock_form"):
+    password = st.text_input("Password", type="password", placeholder="••••••")
+    unlock = st.form_submit_button("Unlock")
+
+if unlock:
+    if password == "secret":  # ← swap out "secret" for your real password check
+        st.success("🔓 Unlocked!")
+        # Put your protected content here:
+        st.write("Welcome! Here's your secured content…")
     else:
-        st.session_state.login_failed = True
+        st.error("❌ Incorrect password.")
 
-# ─── LOGIN SCREEN ────────────────────────────────────────────
-if not st.session_state.authenticated:
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown("## 🔒 Secure Login")
-        # one text_input, one button
-        pwd = st.text_input("Password", type="password", key="pwd")
-        if st.button("Unlock"):
-            check_password()
-        # error feedback
-        if st.session_state.login_failed:
-            st.error("❌ Incorrect password — please try again.")
-    st.stop()
-
-# ─── PROTECTED APP ───────────────────────────────────────────
-st.success("✅ Access granted!")
-st.title("Welcome to Your Secure Streamlit App")
-st.write("…your confidential content here…")
 
 
 
