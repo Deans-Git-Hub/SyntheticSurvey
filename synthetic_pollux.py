@@ -12,23 +12,39 @@ import openai
 
 
 
+
+
 st.set_page_config(page_title="Protected App")
 
-# 1) Pull your secret from Streamlit’s secrets
+# 1) Load your secret
 PASSWORD = st.secrets.get("password")
 if PASSWORD is None:
     st.error(
-        "⚠️ No `password` in secrets! "
-        "Add `password = \"Synthetic!\"` to .streamlit/secrets.toml or in Cloud settings."
+        "⚠️ No `password` found!\n\n"
+        "Please add in `.streamlit/secrets.toml`:\n\n"
+        "  password = \"Synthetic!\"\n\n"
+        "or set it in your Streamlit Cloud Secrets."
     )
     st.stop()
 
-# 2) Init session-state flag
+# 2) Session‑state flag
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# 3) IF NOT AUTHENTICATED → show only the login form
-if not st.session_state.authenticated:
+# 3) Branch on authentication
+if st.session_state.authenticated:
+    # ─── PROTECTED CONTENT ─────────────────────────────────────────────
+    st.title("🔓 Welcome to your protected app!")
+    st.write(
+        """
+        You’ve successfully unlocked the app.  
+        Now you can put all your secret tools, charts, or whatever else here—
+        and *you’ll never see the login form again* until you restart the session.
+        """
+    )
+
+else:
+    # ─── LOGIN FORM ────────────────────────────────────────────────────
     st.title("🔐 Please log in")
     with st.form("login_form"):
         pw = st.text_input("Password", type="password", placeholder="••••••")
@@ -37,20 +53,11 @@ if not st.session_state.authenticated:
     if submit:
         if pw == PASSWORD:
             st.session_state.authenticated = True
-            # No need for st.experimental_rerun(): Streamlit auto-reruns on submit
+            # Immediately rerun so the next pass goes into the “authenticated” branch.
+            st.experimental_rerun()
         else:
-            st.error("❌ Incorrect password")
+            st.error("❌ Incorrect password.")
 
-# 4) ELSE (authenticated) → show only your protected content
-else:
-    st.title("🔓 Welcome to the Protected App!")
-    st.write(
-        """
-        You’ve successfully unlocked the app.  
-        Now you can put all your secret tools, visualizations,
-        or any other content here—without ever seeing the login form again.
-        """
-    )
 
 
 
