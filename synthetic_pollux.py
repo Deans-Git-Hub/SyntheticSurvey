@@ -11,9 +11,6 @@ import altair as alt
 import openai
 
 
-# app.py
-import time
-import streamlit as st
 
 st.set_page_config(page_title="Protected App")
 
@@ -28,32 +25,29 @@ if PASSWORD is None:
     )
     st.stop()
 
-# 2) Init authenticated flag
+# 2) Init “logged in” flag
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# 3) Show only the login form if not yet authenticated
+# 3) Show *only* the login form if not already authenticated
 if not st.session_state.authenticated:
     st.title("🔐 Please log in")
+
     with st.form("login_form"):
-        pw = st.text_input("Password", type="password", placeholder="••••••")
+        pw     = st.text_input("Password", type="password", placeholder="••••••")
         submit = st.form_submit_button("Unlock")
 
     if submit:
         if pw == PASSWORD:
             st.session_state.authenticated = True
-            # Try to force an immediate rerun
-            try:
-                st.experimental_rerun()
-            except AttributeError:
-                # Fallback for newer Streamlit: mutate the query string
-                st.set_query_params(_rerun=int(time.time()))
+            st.rerun()   # ← FORCE an immediate rerun with auth=True
         else:
             st.error("❌ Incorrect password.")
-    # Block everything else until authenticated
+
+    # stop here until the rerun happens
     st.stop()
 
-# 4) Protected content (only shown after a true rerun with auth==True)
+# 4) PROTECTED CONTENT (only reached after st.rerun() on a successful login)
 st.title("🔓 Welcome to the Protected App!")
 st.write(
     """
@@ -62,6 +56,7 @@ st.write(
     or any other content here.
     """
 )
+
 
 
 
