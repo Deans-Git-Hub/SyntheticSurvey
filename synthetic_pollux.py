@@ -49,7 +49,6 @@ if not st.session_state.authenticated:
 
 # 4) PROTECTED CONTENT (only reached after st.rerun() on a successful login)
 st.title("Welcome to SurveySynth!")
-)
 
 
 
