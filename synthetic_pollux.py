@@ -17,7 +17,7 @@ st.set_page_config(page_title="Secure App", layout="centered")
 st.session_state.setdefault("authenticated", False)
 st.session_state.setdefault("login_failed", False)
 
-def check_password(pwd: str):
+def check_password(pwd):
     if pwd == st.secrets["credentials"]["password"]:
         st.session_state.authenticated = True
         st.session_state.login_failed = False
@@ -26,43 +26,38 @@ def check_password(pwd: str):
 
 # ─── LOGIN PROMPT ────────────────────────────────────────────
 if not st.session_state.authenticated:
-    # Wrap everything in a fixed‑width div
+    # 1) Open a fixed-width container
     st.markdown(
         """
         <div style="
-            max-width:400px; 
-            margin:6rem auto 0 auto; 
-            padding:2rem; 
-            background:#111; 
-            border-radius:12px;
-            box-shadow:0 6px 24px rgba(0,0,0,0.8);
+          max-width: 400px;
+          margin: 6rem auto;
+          padding: 1.5rem;
+          background: #111;
+          border-radius: 8px;
+          color: #eee;
         ">
-        """, 
-        unsafe_allow_html=True
+        """,
+        unsafe_allow_html=True,
     )
 
-    st.markdown('<h2 style="color:#eee; text-align:center; margin-bottom:1rem;">🔒 Secure Login</h2>', unsafe_allow_html=True)
+    # 2) Heading
+    st.markdown("<h2 style='margin-bottom:1rem;'>🔒 Secure Login</h2>", unsafe_allow_html=True)
 
-    # Use a single form to lock in the layout
-    with st.form("login_form"):
-        pwd = st.text_input(
-            "Password", 
-            type="password", 
-            key="pwd", 
-            help="Press Enter or click Unlock"
-        )
-        unlock = st.form_submit_button("Unlock")
-        if unlock:
-            check_password(pwd)
+    # 3) Password input & button (always present)
+    pwd = st.text_input("Password", type="password", key="pwd")
+    clicked = st.button("Unlock")
 
-    # Show or reserve space for error
+    if clicked:
+        check_password(pwd)
+
+    # 4) Error placeholder (always takes up one line)
     if st.session_state.login_failed:
         st.error("❌ Incorrect password — please try again.")
     else:
-        # reserve the same vertical space so nothing jumps
-        st.write("")  
+        st.write("")  # reserve that spot
 
-    # close div
+    # 5) Close container & halt
     st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
@@ -70,6 +65,7 @@ if not st.session_state.authenticated:
 st.success("✅ Access granted!")
 st.title("Welcome to Your Secure Streamlit App")
 st.write("…your confidential content here…")
+
 
 
 
