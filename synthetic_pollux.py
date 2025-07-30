@@ -12,24 +12,22 @@ import openai
 
 
 
-
 st.set_page_config(page_title="Protected App")
 
-# 1) Load password from secrets (make sure you have password = "Synthetic!" in your secrets.toml)
+# 1) Pull your secret from Streamlit’s secrets
 PASSWORD = st.secrets.get("password")
 if PASSWORD is None:
     st.error(
-        "⚠️ No `password` found in secrets!\n"
-        "Add\n\n  password = \"Synthetic!\"\n\n"
-        "to your .streamlit/secrets.toml or in your Streamlit Cloud settings."
+        "⚠️ No `password` in secrets! "
+        "Add `password = \"Synthetic!\"` to .streamlit/secrets.toml or in Cloud settings."
     )
     st.stop()
 
-# 2) Initialize session state
+# 2) Init session-state flag
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# 3) LOGIN FORM (only runs if not already authenticated)
+# 3) IF NOT AUTHENTICATED → show only the login form
 if not st.session_state.authenticated:
     st.title("🔐 Please log in")
     with st.form("login_form"):
@@ -39,22 +37,21 @@ if not st.session_state.authenticated:
     if submit:
         if pw == PASSWORD:
             st.session_state.authenticated = True
+            # No need for st.experimental_rerun(): Streamlit auto-reruns on submit
         else:
-            st.error("❌ Incorrect password.")
+            st.error("❌ Incorrect password")
 
-    # If still not authenticated, stop here so nothing else renders
-    if not st.session_state.authenticated:
-        st.stop()
+# 4) ELSE (authenticated) → show only your protected content
+else:
+    st.title("🔓 Welcome to the Protected App!")
+    st.write(
+        """
+        You’ve successfully unlocked the app.  
+        Now you can put all your secret tools, visualizations,
+        or any other content here—without ever seeing the login form again.
+        """
+    )
 
-# 4) PROTECTED CONTENT
-st.title("🔓 Welcome to the Protected App!")
-st.write(
-    """
-    You’ve successfully unlocked the app.  
-    Now you can put all your secret tools, visualizations, or
-    any other content here.
-    """
-)
 
 
 
