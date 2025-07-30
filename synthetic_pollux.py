@@ -10,42 +10,48 @@ import pandas as pd
 import altair as alt
 import openai
 
-import streamlit as st
+
 
 st.set_page_config(page_title="Protected App")
 
-# Load the one true password from .streamlit/secrets.toml
-# Make sure you have in your secrets file:
-# password = "Synthetic!"
-PASSWORD = st.secrets["password"]
+# Load password from secrets
+PASSWORD = st.secrets.get("password")
+if PASSWORD is None:
+    st.error(
+        "⚠️ No `password` found in secrets. "
+        "Please add `password = \"Synthetic!\"` to .streamlit/secrets.toml "
+        "or to your Streamlit Cloud Secrets."
+    )
+    st.stop()
 
 # Initialize session state
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# --- LOGIN PAGE ---
+# --- LOGIN FORM ---
 if not st.session_state.authenticated:
     st.title("🔐 Enter Password to Access")
-
     with st.form("login_form"):
         pw = st.text_input("Password", type="password", placeholder="••••••")
         unlock = st.form_submit_button("Unlock")
-
     if unlock:
         if pw == PASSWORD:
             st.session_state.authenticated = True
-            st.experimental_rerun()
+            # No need to call rerun — Streamlit already reran when you hit “Unlock”
         else:
             st.error("❌ Incorrect password.")
-    st.stop()
 
 # --- PROTECTED CONTENT ---
-st.title("🔓 Welcome to the Protected App!")
-st.write("""
-You’ve successfully unlocked the app.  
-Now you can put all your secret tools, visualizations, or
-any other content here.
-""")
+if st.session_state.authenticated:
+    st.title("🔓 Welcome to the Protected App!")
+    st.write(
+        """
+        You’ve successfully unlocked the app.  
+        Now you can put all your secret tools, visualizations, or
+        any other content here.
+        """
+    )
+
 
 
 
