@@ -10,95 +10,70 @@ import pandas as pd
 import altair as alt
 import openai
 
-# ─── Theme Colors ───────────────────────────────────────────
-PRIMARY_COLOR = "#0ef"      # accent (button, highlights)
-CARD_BG       = "#111"      # card background
-TEXT_COLOR    = "#eee"      # card text
-INPUT_BG      = "#222"      # input background
-INPUT_BORDER  = "#444"      # input border
+# ─── Theme-ish colors in‑code ──────────────────────────────
+HEADER_BG    = "#111"      # dark header background
+HEADER_TEXT  = "#eee"      # header text color
+BUTTON_COLOR = "#0ef"      # your accent
 
-# ─── Page Config & Session State ───────────────────────────
+# ─── App setup ──────────────────────────────────────────────
 st.set_page_config(page_title="Secure App", layout="centered")
 st.session_state.setdefault("authenticated", False)
 st.session_state.setdefault("login_failed", False)
 
-# ─── Only render/login page when locked ─────────────────────
+def check_password():
+    if st.session_state.pwd == st.secrets["credentials"]["password"]:
+        st.session_state.authenticated = True
+        st.session_state.login_failed = False
+    else:
+        st.session_state.login_failed = True
+
+# ─── LOGIN SCREEN ───────────────────────────────────────────
 if not st.session_state.authenticated:
-    # 1) Inject minimal CSS scoped to the login card
-    st.markdown(f"""
-        <style>
-        .login-card {{
-          background: {CARD_BG};
-          color: {TEXT_COLOR};
-          padding: 2rem 1.5rem;
-          border-radius: 12px;
-          box-shadow: 0 6px 24px rgba(0,0,0,0.8);
-          max-width: 360px;
-          margin: 4rem auto;
-        }}
-        .login-card h2 {{
-          margin-bottom: 1rem;
-        }}
-        .login-card .stTextInput>div>div>input {{
-          background: {INPUT_BG} !important;
-          color: {TEXT_COLOR} !important;
-          border: 1px solid {INPUT_BORDER} !important;
-          border-radius: 6px !important;
-          padding: 0.75rem !important;
-        }}
-        .login-card .stButton>button {{
-          background: {PRIMARY_COLOR} !important;
-          color: #000 !important;
-          font-weight: bold;
-          width: 100%;
-          padding: 0.7rem;
-          border-radius: 6px;
-          transition: transform 0.15s ease;
-        }}
-        .login-card .stButton>button:hover {{
-          transform: scale(1.03);
-        }}
-        .login-card .stError {{
-          background: #400 !important;
-          color: #f88 !important;
-          border-radius: 6px !important;
-          padding: 0.5rem !important;
-          margin-top: 1rem !important;
-        }}
-        </style>
-    """, unsafe_allow_html=True)
+    cols = st.columns([1, 2, 1])
+    with cols[1]:
+        # 1) Styled header “card”
+        st.markdown(
+            f"""
+            <div style="
+                background:{HEADER_BG};
+                padding:1.5rem;
+                border-radius:12px;
+                box-shadow:0 4px 16px rgba(0,0,0,0.6);
+                text-align:center;
+            ">
+              <h2 style="color:{HEADER_TEXT}; margin:0;">
+                🔒 Secure Login
+              </h2>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-    # 2) Centered login card
-    st.markdown('<div class="login-card">', unsafe_allow_html=True)
-    st.markdown("### 🔒 Secure Login", unsafe_allow_html=True)
+        st.write("")  # small spacer
 
-    # 3) Password input & submit
-    pwd = st.text_input(
-        "Password",
-        type="password",
-        key="pwd_input",
-        help="Press Enter or click Unlock to submit",
-        on_change=lambda: None  # needed to enable Enter-to-submit
-    )
-    if st.button("Unlock"):
-        if pwd == st.secrets["credentials"]["password"]:
-            st.session_state.authenticated = True
-            st.session_state.login_failed = False
-        else:
-            st.session_state.login_failed = True
+        # 2) Native Streamlit input + button
+        pwd = st.text_input(
+            "Password",
+            type="password",
+            key="pwd",
+            on_change=check_password,
+            help="Press Enter or click Unlock",
+        )
+        # style the button via inline styles
+        if st.button("Unlock"):
+            check_password()
 
-    # 4) Show error only after a failed attempt
-    if st.session_state.login_failed:
-        st.error("❌ Incorrect password — please try again.")
-    st.markdown('</div>', unsafe_allow_html=True)
+        # 3) Error feedback
+        if st.session_state.login_failed:
+            st.error("❌ Incorrect password — please try again.")
 
-    # 5) Stop here until authenticated
     st.stop()
 
-# ─── Place your protected app code below ────────────────────
+# ─── PROTECTED APP ───────────────────────────────────────────
 st.success("✅ Access granted!")
 st.title("Welcome to Your Secure Streamlit App")
-st.write("…your confidential content goes here…")
+st.write("…your confidential content here…")
+
 
 
 
