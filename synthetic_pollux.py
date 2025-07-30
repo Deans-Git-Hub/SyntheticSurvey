@@ -93,7 +93,7 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
 st.sidebar.header("Survey Configuration")
 industry   = st.sidebar.text_input("Industry name", value="Pepsi")
 segment    = st.sidebar.text_input("Persona segment (optional)", value="Health Buffs")
-n_personas = st.sidebar.number_input("Number of personas", min_value=5, max_value=200, value=10, step=5)
+n_personas = st.sidebar.number_input("Number of personas", min_value=5, max_value=50, value=10, step=5)
 run_button = st.sidebar.button("Run survey")
 
 # —— 3) Initialize session state —— #
