@@ -10,115 +10,152 @@ import pandas as pd
 import altair as alt
 import openai
 
-# ─── Page & Session State ───────────────────────────────────
+# ─── Page Config & Session State ───────────────────────────
 st.set_page_config(page_title="Secure App", layout="centered")
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "failed_login" not in st.session_state:
     st.session_state.failed_login = False
 
-# ─── Scoped Dark‑Card CSS ────────────────────────────────────
+# ─── Only inject when locked ─────────────────────────────────
 if not st.session_state.authenticated:
+    # 1) Custom CSS for overlay + card + animations
     st.markdown(
         """
         <style>
-        /* Hide Streamlit’s white form box completely */
-        .login-card .stForm,
-        .login-card .stForm form {
-            background: transparent;
-            border: none;
-            box-shadow: none;
-            padding: 0;
-            margin: 0;
+        /* Fullscreen overlay */
+        #login-overlay {
+          position: fixed; top: 0; left: 0;
+          width: 100vw; height: 100vh;
+          background: rgba(0,0,0,0.6);
+          backdrop-filter: blur(6px);
+          display: flex; align-items: center; justify-content: center;
+          z-index: 9999;
         }
-        /* Your custom card */
-        .login-card {
-            max-width: 360px;
-            margin: 6rem auto;
-            background: #111;
-            color: #eee;
-            padding: 2rem 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+        /* Card container */
+        #login-card {
+          width: 360px;
+          background: #111;
+          padding: 2rem 1.5rem;
+          border-radius: 12px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.8);
+          font-family: 'Inter', sans-serif;
         }
-        .login-header {
-            text-align: center;
-            margin-bottom: 1.5rem;
+        /* Header */
+        #login-card .header {
+          text-align: center;
+          margin-bottom: 1.5rem;
         }
-        .login-header h2 {
-            margin: 0;
-            font-size: 1.6rem;
-            color: #fff;
+        #login-card .header svg {
+          width: 48px; height: 48px; margin-bottom: 0.5rem;
         }
-        /* Style inputs inside just your card */
-        .login-card .stTextInput>div>div>input {
-            background: #222 !important;
-            color: #eee !important;
-            border: 1px solid #444 !important;
-            border-radius: 6px !important;
-            padding: 0.5rem 0.75rem !important;
+        #login-card .header h2 {
+          margin: 0; font-size: 1.6rem; color: #eee;
         }
-        /* Full‑width neon button */
-        .login-card .stButton>button {
-            width: 100%;
-            margin-top: 0.5rem;
-            padding: 0.65rem;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            background: linear-gradient(90deg, #0f0, #0ff);
-            color: #000;
-            font-weight: bold;
+        /* Input */
+        #login-card input[type="password"] {
+          width: 100%;
+          padding: 0.6rem 0.75rem;
+          margin-bottom: 1rem;
+          background: #222;
+          color: #eee;
+          border: 1px solid #444;
+          border-radius: 6px;
+          font-size: 1rem;
         }
-        .login-card .stButton>button:hover {
-            background: linear-gradient(90deg, #0ff, #0f0);
+        /* Button */
+        #login-card button {
+          width: 100%;
+          padding: 0.65rem;
+          border: none; border-radius: 6px;
+          font-size: 1rem; font-weight: bold;
+          background: linear-gradient(90deg, #0f0, #0ff);
+          color: #000;
+          transition: transform 0.15s ease;
+          cursor: pointer;
         }
-        /* Error styling scoped to card */
-        .login-card .stAlert > div {
-            background-color: #400;
-            color: #f88;
-            border: 1px solid #f00;
-            border-radius: 6px;
-            padding: 0.5rem;
-            margin-top: 0.5rem;
+        #login-card button:hover {
+          transform: scale(1.04);
+        }
+        /* Error */
+        #login-card .error {
+          background-color: #400;
+          color: #f88;
+          border: 1px solid #f00;
+          border-radius: 6px;
+          padding: 0.5rem;
+          margin-top: 0.5rem;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-# ─── Login Form ─────────────────────────────────────────────
-def login():
-    st.markdown('<div class="login-card">', unsafe_allow_html=True)
+    # 2) Autofocus script
     st.markdown(
-        '<div class="login-header"><h2>🔒 Secure Login</h2></div>',
+        """
+        <script>
+        document.addEventListener("DOMContentLoaded", function() {
+          const pwd = document.querySelector('#login-overlay input[type="password"]');
+          if (pwd) pwd.focus();
+        });
+        </script>
+        """,
         unsafe_allow_html=True,
     )
-    with st.form("login_form"):
-        pwd = st.text_input(
-            "Password",
-            type="password",
-            help="Enter the secret password to access the app."
-        )
-        submitted = st.form_submit_button("Unlock")
-        if submitted:
-            if pwd == st.secrets["credentials"]["password"]:
-                st.session_state.authenticated = True
-            else:
-                st.session_state.failed_login = True
 
-    if st.session_state.failed_login:
-        st.error("❌ Incorrect password — please try again.")
-    st.markdown("</div>", unsafe_allow_html=True)
+    # 3) Import Inter font + begin overlay
+    st.markdown(
+        """
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+        <div id="login-overlay">
+        <div id="login-card">
+          <div class="header">
+            <!-- Lock icon SVG -->
+            <svg viewBox="0 0 24 24" fill="#eee">
+              <path d="M12 17a2 2 0 1 0 .001-3.999A2 2 0 0 0 12 17zm6-6v-3a6 6 0 0 0-12 0v3H4v10h16V11h-2zm-8-3a4 4 0 0 1 8 0v3H10v-3z"/>
+            </svg>
+            <h2>Secure Login</h2>
+          </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
-# ─── Render or Halt ────────────────────────────────────────
-if not st.session_state.authenticated:
-    login()
+    # 4) Native HTML form to capture Enter
+    #    Submits back into Streamlit via query param trick
+    pwd_val = st.experimental_get_query_params().get("pwd", [""])[0]
+    form_html = f"""
+      <form action="" method="GET">
+        <input 
+          name="pwd" 
+          type="password" 
+          placeholder="Enter password" 
+          value="{pwd_val}" 
+          autocomplete="off"
+        />
+        <button type="submit">Unlock</button>
+      </form>
+    """
+    st.markdown(form_html, unsafe_allow_html=True)
+
+    # 5) Handle submission
+    if pwd_val:
+        if pwd_val == st.secrets["credentials"]["password"]:
+            st.session_state.authenticated = True
+            # clear query param
+            st.experimental_set_query_params()
+        else:
+            st.markdown('<div class="error">❌ Incorrect password — please try again.</div>', unsafe_allow_html=True)
+
+    # 6) Close overlay
+    st.markdown("</div></div>", unsafe_allow_html=True)
     st.stop()
 
-# ─── Protected Content ─────────────────────────────────────
+# ─── Protected Content (normal Streamlit theme) ─────────────
 st.success("✅ Access granted!")
-st.title("Welcome to SurveySynth™!")
+st.title("Welcome to Your Secure Streamlit App")
+st.write("Here’s the confidential content…")
+
 
 
 
