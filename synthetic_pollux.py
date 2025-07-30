@@ -85,7 +85,7 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
     return openai.chat.completions.create(**payload).choices[0].message
 
 # ——— 4) Sidebar controls ————————————————————————
-st.sidebar.header("Survey Configuration")
+st.sidebar.header("Key Inputs")
 industry = st.sidebar.text_input(
     "Industry name",
     value="Pepsi"
@@ -106,7 +106,7 @@ n_personas = st.sidebar.number_input(
 run_button = st.sidebar.button("Run survey")
 if run_button:
     # Visual feedback right under the button
-    st.sidebar.info("🚀 Survey started — please wait!")
+    st.sidebar.info("🚀 Survey started — please wait on the results page!")
 
 # ——— 5) Callbacks for add/remove rows ————————————
 def remove_persona_field(idx):
