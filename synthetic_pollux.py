@@ -212,7 +212,6 @@ def make_batch_fn(questions):
 
 # ——— 9) Parallelized batched survey runner —————————
 def run_survey(personas, questions, segment):
-    # copy everything needed out of session_state
     fields = list(st.session_state.persona_fields)
     qlist  = list(questions)
 
@@ -329,5 +328,8 @@ with tab_results:
             fn=find_fn, fn_name="generate_findings", temp=1
         )
         summary = json.loads(find_resp.function_call.arguments)["summary"]
+
+        # Add a title for Key Findings
+        st.header("Key Findings")
         for para in summary.split("\n\n"):
             st.write(para)
