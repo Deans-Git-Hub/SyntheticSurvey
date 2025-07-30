@@ -1,7 +1,5 @@
 import os
 import json
-import re
-import difflib
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -10,11 +8,11 @@ import pandas as pd
 import altair as alt
 import openai
 
-# ——— 0) Page config & API key ——————————————————————————
+# ——— 0) Page config & API key —————————————————————
 st.set_page_config(page_title="Synthetic Survey Engine", layout="wide")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# ——— 1) Password gate —————————————————————————————
+# ——— 1) Password gate ——————————————————————————
 PASSWORD = st.secrets.get("password")
 if PASSWORD is None:
     st.error(
@@ -56,30 +54,29 @@ if "persona_fields" not in st.session_state:
         {"name": "occupation", "type": "string"},
         {"name": "intro", "type": "string"},
     ]
-
 if "questions" not in st.session_state:
     st.session_state.questions = [
         {
             "key": "accessibility",
-            "system": "Answer Yes or No exactly.",
+            "system": "Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.",
             "user": "Is Pepsi easily accessible?",
             "options": ["Yes", "No"],
         },
         {
             "key": "interest",
-            "system": "Choose one option.",
+            "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
             "user": "At what time would you drink soda?",
             "options": ["Morning", "Afternoon", "Evening"],
         },
         {
             "key": "timeline",
-            "system": "Choose one option.",
+            "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
             "user": "How often do you drink soda?",
             "options": ["Frequently", "Occasionally", "Rarely", "Never"],
         },
     ]
 
-# ——— 3) OpenAI helper ——————————————————————————————————
+# ——— 3) OpenAI helper ——————————————————————————
 def call_chat(messages, fn=None, fn_name=None, temp=1.0):
     payload = {"model": "o4-mini", "messages": messages, "temperature": temp}
     if fn:
@@ -87,20 +84,22 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
         payload["function_call"] = {"name": fn_name}
     return openai.chat.completions.create(**payload).choices[0].message
 
-# ——— 4) Sidebar controls ——————————————————————————
+# ——— 4) Sidebar controls ————————————————————————
 st.sidebar.header("Survey Configuration")
 industry   = st.sidebar.text_input("Industry name", value="Pepsi")
 segment    = st.sidebar.text_input("Persona segment (optional)", value="Health Buffs")
 n_personas = st.sidebar.number_input("Number of personas", min_value=5, max_value=50, value=10, step=5)
 run_button = st.sidebar.button("Run survey")
 
-# ——— 5) Callbacks for add/remove rows —————————————
+# ——— 5) Callbacks for add/remove rows ————————————
 def remove_persona_field(idx):
     st.session_state.persona_fields.pop(idx)
 
 def add_persona_field():
-    intro_idx = next((i for i,f in enumerate(st.session_state.persona_fields) if f["name"]=="intro"),
-                     len(st.session_state.persona_fields))
+    intro_idx = next(
+        (i for i,f in enumerate(st.session_state.persona_fields) if f["name"]=="intro"),
+        len(st.session_state.persona_fields)
+    )
     st.session_state.persona_fields.insert(intro_idx, {"name": "", "type": "string"})
 
 def remove_question(idx):
@@ -109,7 +108,7 @@ def remove_question(idx):
 def add_question():
     st.session_state.questions.append({"key": "", "system": "", "user": "", "options": []})
 
-# ——— 6) Tabs & editable UI —————————————————————————
+# ——— 6) Tabs & editable UI ——————————————————————
 tab_config, tab_results = st.tabs(["Configuration", "Results"])
 
 with tab_config:
@@ -118,11 +117,13 @@ with tab_config:
         if f["name"] == "intro":
             st.markdown("**intro** (fixed field)")
             continue
-        c1, c2, c3 = st.columns([4,2,1])
+        c1, c2, c3 = st.columns([4, 2, 1])
         name = c1.text_input("Field name", f["name"], key=f"pf_name_{i}")
-        typ  = c2.selectbox("Type", ["string","integer"],
-                            index=0 if f["type"]=="string" else 1,
-                            key=f"pf_type_{i}")
+        typ  = c2.selectbox(
+            "Type", ["string", "integer"],
+            index=0 if f["type"]=="string" else 1,
+            key=f"pf_type_{i}"
+        )
         st.session_state.persona_fields[i] = {"name": name.strip(), "type": typ}
         c3.button("Remove", key=f"rm_pf_{i}", on_click=remove_persona_field, args=(i,))
     st.button("Add persona field", on_click=add_persona_field)
@@ -134,7 +135,11 @@ with tab_config:
         key  = st.text_input("Key", q["key"], key=f"q_key_{i}")
         sys  = st.text_input("System prompt", q["system"], key=f"q_sys_{i}")
         user = st.text_input("User prompt", q["user"], key=f"q_user_{i}")
-        opts = st.text_input("Options (comma-separated)", ", ".join(q["options"]), key=f"q_opts_{i}")
+        opts = st.text_input(
+            "Options (comma-separated)",
+            ", ".join(q["options"]),
+            key=f"q_opts_{i}"
+        )
         st.session_state.questions[i] = {
             "key": key.strip(),
             "system": sys.strip(),
@@ -148,7 +153,7 @@ with tab_config:
 def build_persona_schema(fields):
     props, req = {}, []
     for f in fields:
-        props[f["name"]] = ({"type":"integer"} if f["type"]=="integer" else {"type":"string"})
+        props[f["name"]] = {"type": "integer"} if f["type"]=="integer" else {"type": "string"}
         req.append(f["name"])
     return {"type":"object","properties":props,"required":req}
 
@@ -164,11 +169,11 @@ def make_persona_fn(schema):
     }
 
 def generate_personas(segment, n, schema):
-    fn = make_persona_fn(schema)
+    fn      = make_persona_fn(schema)
     seg_txt = f" They all belong to “{segment}”." if segment else ""
     sys_msg = {
-        "role":"system",
-        "content":(
+        "role": "system",
+        "content": (
             f"Generate up to {n} unique customer personas.{seg_txt} "
             "Each persona should reflect that background, but exhibit a wide spectrum "
             "of preferences and opinions, not uniformly positive or negative."
@@ -177,11 +182,13 @@ def generate_personas(segment, n, schema):
     personas, seen = [], set()
     while len(personas) < n:
         need = n - len(personas)
-        resp = call_chat([sys_msg, {"role":"user","content":f"Generate {need} personas now."}],
-                         fn=fn, fn_name="generate_personas")
+        resp = call_chat(
+            [sys_msg, {"role":"user","content":f"Generate {need} personas now."}],
+            fn=fn, fn_name="generate_personas"
+        )
         batch = json.loads(resp.function_call.arguments)["personas"]
         for p in batch:
-            uid = p.get("intro","")+p.get("name","")
+            uid = p.get("intro","") + p.get("name","")
             if uid not in seen:
                 personas.append(p)
                 seen.add(uid)
@@ -196,44 +203,49 @@ def make_batch_fn(questions):
         "description": "Answer multiple survey questions at once.",
         "parameters": {
             "type":"object",
-            "properties": {q["key"]: {"type":"string","enum":q["options"]} for q in questions},
+            "properties": {
+                **{q["key"]: {"type":"string", "enum": q["options"]} for q in questions}
+            },
             "required": [q["key"] for q in questions]
         }
     }
 
 # ——— 9) Parallelized batched survey runner —————————
 def run_survey(personas, questions, segment):
-    scores = {q["key"]: [] for q in questions}
-    batch_fn = make_batch_fn(questions)
+    # copy everything needed out of session_state
+    fields = list(st.session_state.persona_fields)
+    qlist  = list(questions)
+
+    scores   = {q["key"]: [] for q in qlist}
+    batch_fn = make_batch_fn(qlist)
 
     def ask_persona(p):
-        lines = [f"{f['name'].capitalize()}: {p.get(f['name'],'')}"
-                 for f in st.session_state.persona_fields]
+        lines = [f"{f['name'].capitalize()}: {p.get(f['name'], '')}" for f in fields]
         if segment:
             lines.append(f"Segment: {segment}")
         base = {"role":"system", "content":"You are this persona:\n" + "\n".join(lines)}
 
-        messages = [base] + [{"role":"system","content":q["system"]} for q in questions]
-        user_text = "\n".join(f"{i+1}. {q['user']}" for i,q in enumerate(questions))
-        messages.append({"role":"user","content":user_text})
+        messages = [base] + [{"role":"system","content":q["system"]} for q in qlist]
+        user_text = "\n".join(f"{i+1}. {q['user']}" for i, q in enumerate(qlist))
+        messages.append({"role":"user", "content": user_text})
 
-        resp = call_chat(messages, fn=batch_fn, fn_name="answer_survey")
+        resp    = call_chat(messages, fn=batch_fn, fn_name="answer_survey")
         return json.loads(resp.function_call.arguments)
 
-    with ThreadPoolExecutor(max_workers=min(10,len(personas))) as exe:
-        futures = {exe.submit(ask_persona,p): idx for idx,p in enumerate(personas)}
+    with ThreadPoolExecutor(max_workers=min(10, len(personas))) as exe:
+        futures = {exe.submit(ask_persona, p): idx for idx, p in enumerate(personas)}
         for fut in as_completed(futures):
             answers = fut.result()
-            for q in questions:
+            for q in qlist:
                 scores[q["key"]].append(answers.get(q["key"]))
 
     return scores
 
-# ——— 10) Results tab —————————————————————————————
+# ——— 10) Results tab ————————————————————————————
 with tab_results:
     if run_button:
-        schema    = build_persona_schema(st.session_state.persona_fields)
-        questions = st.session_state.questions
+        schema     = build_persona_schema(st.session_state.persona_fields)
+        questions  = st.session_state.questions
 
         with st.spinner("Generating personas…"):
             personas = generate_personas(segment, n_personas, schema)
@@ -243,6 +255,7 @@ with tab_results:
         st.title("Synthetic Survey Results")
         total = len(personas)
 
+        # Per-question charts & tables
         for q in questions:
             dist = Counter(scores[q["key"]])
             df = pd.DataFrame({
@@ -254,36 +267,43 @@ with tab_results:
             chart = (
                 alt.Chart(df)
                    .mark_bar()
-                   .encode(x=alt.X("Option:N", sort=q["options"]),
-                           y="Count:Q",
-                           tooltip=["Option","Count","Percent"])
+                   .encode(
+                       x=alt.X("Option:N", sort=q["options"]),
+                       y="Count:Q",
+                       tooltip=["Option","Count","Percent"]
+                   )
                    .properties(width=600, height=300)
             )
             st.altair_chart(chart, use_container_width=True)
             st.table(df.set_index("Option"))
 
+        # Personas & intros
         st.header("Generated Personas")
         st.dataframe(pd.DataFrame(personas))
         st.header("Persona Intros")
         for p in personas:
             st.markdown(f"**{p.get('name','')}**: {p.get('intro','')}")
 
+        # Key Findings via LLM
         stats = {}
         for q in questions:
+            opts = q["options"]
             dist = Counter(scores[q["key"]])
             stats[q["key"]] = {
-                "counts":      {o: dist.get(o,0) for o in q["options"]},
-                "percentages": {o: round(dist.get(o,0)/total*100,1) for o in q["options"]},
+                "counts":      {o: dist.get(o,0) for o in opts},
+                "percentages": {o: round(dist.get(o,0)/total*100,1) for o in opts}
             }
 
+        personas_json = json.dumps(personas, indent=2)
+        stats_json    = json.dumps(stats, indent=2)
         find_prompt = [
             {
                 "role":"system",
                 "content":(
                     f"Synthetic Survey Engine results for industry '{industry}'"
                     f"{' (segment: '+segment+')' if segment else ''}.\n\n"
-                    f"Metrics:\n{json.dumps(stats,indent=2)}\n\n"
-                    f"Persona profiles:\n{json.dumps(personas,indent=2)}"
+                    f"Metrics:\n{stats_json}\n\n"
+                    f"Persona profiles:\n{personas_json}"
                 )
             },
             {
@@ -298,10 +318,16 @@ with tab_results:
         find_fn = {
             "name":"generate_findings",
             "description":"Return an object with a 'summary' field containing multiple paragraphs of analysis.",
-            "parameters":{"type":"object","properties":{"summary":{"type":"string"}},"required":["summary"]}
+            "parameters":{
+                "type":"object",
+                "properties":{"summary":{"type":"string"}},
+                "required":["summary"]
+            }
         }
-        find_resp = call_chat(find_prompt + [{"role":"system","content":"You are a data analyst."}],
-                              fn=find_fn, fn_name="generate_findings", temp=1)
+        find_resp = call_chat(
+            find_prompt + [{"role":"system","content":"You are a data analyst."}],
+            fn=find_fn, fn_name="generate_findings", temp=1
+        )
         summary = json.loads(find_resp.function_call.arguments)["summary"]
         for para in summary.split("\n\n"):
             st.write(para)
