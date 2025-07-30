@@ -114,7 +114,7 @@ if "persona_fields" not in st.session_state:
 if "questions" not in st.session_state:
     st.session_state.questions = [
         {
-            "key": "alignment",
+            "key": "accessibility",
             "system": "Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.",
             "user": "Is Pepsi easily accessible?",
             "options": ["Yes", "No"]
