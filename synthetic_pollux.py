@@ -14,147 +14,117 @@ import openai
 st.set_page_config(page_title="Secure App", layout="centered")
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
-if "failed_login" not in st.session_state:
-    st.session_state.failed_login = False
+if "login_failed" not in st.session_state:
+    st.session_state.login_failed = False
 
-# ─── Only inject when locked ─────────────────────────────────
+# ─── LOCKED: Inject Overlay + Card CSS ──────────────────────
 if not st.session_state.authenticated:
-    # 1) Custom CSS for overlay + card + animations
     st.markdown(
         """
         <style>
-        /* Fullscreen overlay */
-        #login-overlay {
-          position: fixed; top: 0; left: 0;
+        /* Full‑screen overlay */
+        .overlay {
+          position: fixed;
+          top: 0; left: 0;
           width: 100vw; height: 100vh;
           background: rgba(0,0,0,0.6);
           backdrop-filter: blur(6px);
-          display: flex; align-items: center; justify-content: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           z-index: 9999;
         }
         /* Card container */
-        #login-card {
+        .card {
           width: 360px;
           background: #111;
           padding: 2rem 1.5rem;
-          border-radius: 12px;
+          border-radius: 16px;
           box-shadow: 0 8px 24px rgba(0,0,0,0.8);
           font-family: 'Inter', sans-serif;
         }
-        /* Header */
-        #login-card .header {
-          text-align: center;
-          margin-bottom: 1.5rem;
-        }
-        #login-card .header svg {
-          width: 48px; height: 48px; margin-bottom: 0.5rem;
-        }
-        #login-card .header h2 {
-          margin: 0; font-size: 1.6rem; color: #eee;
-        }
-        /* Input */
-        #login-card input[type="password"] {
-          width: 100%;
-          padding: 0.6rem 0.75rem;
-          margin-bottom: 1rem;
-          background: #222;
+        .card h2 {
           color: #eee;
-          border: 1px solid #444;
-          border-radius: 6px;
+          text-align: center;
+          margin-bottom: 1rem;
+        }
+        /* Input styling */
+        .card .stTextInput>div>div>input {
+          background: #222 !important;
+          color: #eee !important;
+          border: 1px solid #444 !important;
+          border-radius: 8px !important;
+          padding: 0.75rem !important;
           font-size: 1rem;
         }
-        /* Button */
-        #login-card button {
+        /* Button styling + hover pop */
+        .card .stButton>button {
           width: 100%;
-          padding: 0.65rem;
-          border: none; border-radius: 6px;
-          font-size: 1rem; font-weight: bold;
+          margin-top: 1rem;
+          padding: 0.7rem;
+          border: none;
+          border-radius: 8px;
           background: linear-gradient(90deg, #0f0, #0ff);
           color: #000;
+          font-weight: bold;
           transition: transform 0.15s ease;
-          cursor: pointer;
         }
-        #login-card button:hover {
+        .card .stButton>button:hover {
           transform: scale(1.04);
         }
-        /* Error */
-        #login-card .error {
-          background-color: #400;
+        /* Error message */
+        .card .error {
+          background: #400;
           color: #f88;
           border: 1px solid #f00;
           border-radius: 6px;
           padding: 0.5rem;
-          margin-top: 0.5rem;
+          margin-top: 1rem;
+          text-align: center;
         }
+        /* Autofocus shim */
         </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # 2) Autofocus script
-    st.markdown(
-        """
-        <script>
-        document.addEventListener("DOMContentLoaded", function() {
-          const pwd = document.querySelector('#login-overlay input[type="password"]');
-          if (pwd) pwd.focus();
-        });
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # 3) Import Inter font + begin overlay
-    st.markdown(
-        """
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-        <div id="login-overlay">
-        <div id="login-card">
-          <div class="header">
-            <!-- Lock icon SVG -->
-            <svg viewBox="0 0 24 24" fill="#eee">
-              <path d="M12 17a2 2 0 1 0 .001-3.999A2 2 0 0 0 12 17zm6-6v-3a6 6 0 0 0-12 0v3H4v10h16V11h-2zm-8-3a4 4 0 0 1 8 0v3H10v-3z"/>
-            </svg>
-            <h2>Secure Login</h2>
-          </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # 4) Native HTML form to capture Enter
-    #    Submits back into Streamlit via query param trick
-    pwd_val = st.experimental_get_query_params().get("pwd", [""])[0]
-    form_html = f"""
-      <form action="" method="GET">
-        <input 
-          name="pwd" 
-          type="password" 
-          placeholder="Enter password" 
-          value="{pwd_val}" 
-          autocomplete="off"
-        />
-        <button type="submit">Unlock</button>
-      </form>
-    """
-    st.markdown(form_html, unsafe_allow_html=True)
+    # Overlay + Card Markup
+    st.markdown('<div class="overlay"><div class="card">', unsafe_allow_html=True)
+    # Lock Icon + Heading
+    st.markdown(
+        """
+        <div style="text-align:center; margin-bottom:0.5rem;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="#eee">
+            <path d="M12 17a2 2 0 1 0 .001-3.999A2 2 0 0 0 12 17zm6-6v-3a6 6 0 0 0-12 0v3H4v10h16V11h-2zm-8-3a4 4 0 0 1 8 0v3H10v-3z"/>
+          </svg>
+        </div>
+        <h2>Secure Login</h2>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    # 5) Handle submission
-    if pwd_val:
-        if pwd_val == st.secrets["credentials"]["password"]:
+    # Native Streamlit Inputs
+    pwd = st.text_input("Password", type="password", key="pwd_input")
+    if st.button("Unlock"):
+        if pwd == st.secrets["credentials"]["password"]:
             st.session_state.authenticated = True
-            # clear query param
-            st.experimental_set_query_params()
+            st.session_state.login_failed = False
         else:
-            st.markdown('<div class="error">❌ Incorrect password — please try again.</div>', unsafe_allow_html=True)
+            st.session_state.login_failed = True
 
-    # 6) Close overlay
+    # Error only after failure
+    if st.session_state.login_failed:
+        st.markdown('<div class="error">❌ Incorrect password — please try again.</div>', unsafe_allow_html=True)
+
     st.markdown("</div></div>", unsafe_allow_html=True)
+    # Halt everything until auth succeeds
     st.stop()
 
-# ─── Protected Content (normal Streamlit theme) ─────────────
-st.success("✅ Access granted!")
-st.title("Welcome to Your Secure Streamlit App")
-st.write("Here’s the confidential content…")
+# ─── UNLOCKED: Your Normal Streamlit App ────────────────────
+st.success("✅ Access granted")
+st.title("Welcome to SurveySynth!")
+
 
 
 
