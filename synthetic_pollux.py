@@ -11,27 +11,30 @@ import altair as alt
 import openai
 
 
+# app.py
+import time
+import streamlit as st
+
 st.set_page_config(page_title="Protected App")
 
 # 1) Load password from secrets
 PASSWORD = st.secrets.get("password")
 if PASSWORD is None:
     st.error(
-        "⚠️ No `password` found!\n\n"
-        "Please add in `.streamlit/secrets.toml`:\n\n"
+        "⚠️ No `password` in secrets!\n\n"
+        "Add in `.streamlit/secrets.toml`:\n\n"
         "    password = \"Synthetic!\"\n\n"
         "or set it in your Streamlit Cloud Secrets."
     )
     st.stop()
 
-# 2) Initialize our “logged‑in” flag
+# 2) Init authenticated flag
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# 3) If not authenticated → show *only* the login form and then stop()
+# 3) Show only the login form if not yet authenticated
 if not st.session_state.authenticated:
     st.title("🔐 Please log in")
-
     with st.form("login_form"):
         pw = st.text_input("Password", type="password", placeholder="••••••")
         submit = st.form_submit_button("Unlock")
@@ -39,24 +42,27 @@ if not st.session_state.authenticated:
     if submit:
         if pw == PASSWORD:
             st.session_state.authenticated = True
-            # *** Right here we force a rerun so that the top-of-script
-            #     `if not authenticated` block is *not* executed again. ***
-            st.experimental_rerun()
+            # Try to force an immediate rerun
+            try:
+                st.experimental_rerun()
+            except AttributeError:
+                # Fallback for newer Streamlit: mutate the query string
+                st.set_query_params(_rerun=int(time.time()))
         else:
             st.error("❌ Incorrect password.")
-
-    # Prevent anything below from rendering until after a successful login
+    # Block everything else until authenticated
     st.stop()
 
-# 4) PROTECTED CONTENT (only reached once authenticated == True)
+# 4) Protected content (only shown after a true rerun with auth==True)
 st.title("🔓 Welcome to the Protected App!")
 st.write(
     """
     You’ve successfully unlocked the app—no login box in sight.
-    Now you can put all your secret tools, visualizations, or
-    any other content here.
+    Now you can put all your secret tools, visualizations,
+    or any other content here.
     """
 )
+
 
 
 
