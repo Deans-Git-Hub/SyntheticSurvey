@@ -87,11 +87,11 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
 # ——— 4) Sidebar controls ————————————————————————
 st.sidebar.header("Key Inputs")
 industry = st.sidebar.text_input(
-    "Industry name",
+    "Industry/Product Name",
     value="Pepsi"
 )
 segment = st.sidebar.text_input(
-    "Persona segment (optional)",
+    "Persona Segment (optional)",
     value="Health Buffs",
     help="Specify an optional subgroup label to guide persona generation (e.g., 'Health Buffs')."
 )
