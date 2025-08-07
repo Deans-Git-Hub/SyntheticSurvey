@@ -195,7 +195,7 @@ def generate_personas(segment, n, schema):
             "Each persona should reflect that background, but exhibit a wide spectrum "
             "of preferences and opinions, not uniformly positive or negative."
             "Avoid stereotyping."
-            "Each intro should be a short paragraph."
+            "Each intro should be 4-5 sentences."
         )
     }
     personas, seen = [], set()
