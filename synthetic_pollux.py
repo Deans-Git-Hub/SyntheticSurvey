@@ -203,7 +203,7 @@ def generate_personas(segment, n, schema):
             "Each persona should reflect that background with varied preferences, "
             "avoiding stereotypes. For each one, write a first person 4–5 sentence mini-biography "
             "that illustrates their background, motivations, and personal context—"
-            "do not explicitly mention the segment name."
+            "briefly mention the connection to the segment."
         )
     }
 
