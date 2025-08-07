@@ -187,18 +187,26 @@ def make_persona_fn(schema):
 
 def generate_personas(segment, n, schema):
     fn      = make_persona_fn(schema)
-    seg_txt = f" They all belong to “{segment}”." if segment else ""
+
+    if segment:
+        seg_txt = (
+            f"All personas should share the background of “{segment},” "
+            "but do not mention that label in the intros."
+        )
+    else:
+        seg_txt = ""
+
     sys_msg = {
         "role": "system",
         "content": (
-            f"Generate up to {n} unique customer personas.{seg_txt} "
-            "Each persona should reflect that background, but exhibit a wide spectrum "
-            "of preferences and opinions, not uniformly positive or negative."
-            "Avoid stereotyping."
-            "Each intro should be 4-5 sentences."
-            "The persona segment should play a very minimal role in the intro"
+            f"Generate up to {n} unique customer personas. {seg_txt} "
+            "Each persona should reflect that background with varied preferences, "
+            "avoiding stereotypes. For each one, write a 4–5 sentence mini-biography "
+            "that illustrates their daily routines, motivations, and personal context—"
+            "do not explicitly mention the segment name."
         )
     }
+
     personas, seen = [], set()
     while len(personas) < n:
         need = n - len(personas)
