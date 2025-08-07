@@ -194,6 +194,8 @@ def generate_personas(segment, n, schema):
             f"Generate up to {n} unique customer personas.{seg_txt} "
             "Each persona should reflect that background, but exhibit a wide spectrum "
             "of preferences and opinions, not uniformly positive or negative."
+            "Avoid stereotyping."
+            "Each intro should be a short paragraph."
         )
     }
     personas, seen = [], set()
