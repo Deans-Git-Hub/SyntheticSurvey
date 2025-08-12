@@ -99,7 +99,7 @@ n_personas = st.sidebar.number_input(
     "Number of respondents",
     min_value=5,
     max_value=50,
-    value=10,
+    value=50,
     step=5,
     help="How many synthetic respondents to generate for the survey (between 5 and 50)."
 )
@@ -306,9 +306,9 @@ with tab_results:
             st.write("")  # extra spacing
 
         # Personas & intros
-        st.header("Generated Personas")
+        st.header("Synthetic Respondents")
         st.dataframe(pd.DataFrame(personas))
-        st.header("Persona Intros")
+        st.header("Respondent Intros")
         for p in personas:
             st.markdown(f"**{p.get('name','')}**: {p.get('intro','')}")
 
