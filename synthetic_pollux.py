@@ -72,7 +72,7 @@ if "questions" not in st.session_state:
             "key": "Mind: Skill Readiness",
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
             "user": "Employees at my organization have the right skills to work effectively with generative AI.",
-            "options": ["Frequently", "Occasionally", "Rarely", "Never"],
+            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
         },
     ]
 
