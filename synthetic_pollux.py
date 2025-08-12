@@ -99,7 +99,7 @@ n_personas = st.sidebar.number_input(
     "Number of respondents",
     min_value=5,
     max_value=50,
-    value=50,
+    value=10,
     step=5,
     help="How many synthetic respondents to generate for the survey (between 5 and 50)."
 )
