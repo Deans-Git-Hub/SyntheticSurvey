@@ -18,11 +18,9 @@ def pct_1dp_sum_100(counts):
     if total == 0:
         return [0.0] * len(counts)
     raw = [c * 100.0 / total for c in counts]
-    # floor to 0.1 to avoid overshooting after rounding
-    rounded = [int(x * 10) / 10 for x in raw]
+    rounded = [int(x * 10) / 10 for x in raw]  # floor to 0.1
     shortfall = round(100.0 - sum(rounded), 1)
     if shortfall > 0:
-        # distribute +0.1 to the largest fractional remainders first
         order = sorted(range(len(raw)), key=lambda i: raw[i] - rounded[i], reverse=True)
         for i in order[:int(shortfall * 10)]:
             rounded[i] = round(rounded[i] + 0.1, 1)
@@ -79,7 +77,6 @@ if "questions" not in st.session_state:
             "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
         },
         {
-
             "key": "Mind: Skill Readiness",
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
             "user": "Employees at my organization have the right skills to work effectively with generative AI.",
@@ -96,7 +93,6 @@ if "questions" not in st.session_state:
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
             "user": "I trust the outcomes produced by our AI systems.",
             "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"]
-
         },
     ]
 
@@ -129,7 +125,6 @@ n_personas = st.sidebar.number_input(
 )
 run_button = st.sidebar.button("Run survey")
 if run_button:
-    # Visual feedback right under the button
     st.sidebar.info("🚀 Survey started — please wait on the results page!")
 
 # ——— 5) Callbacks for add/remove rows ————————————
@@ -254,11 +249,11 @@ def make_batch_fn(questions):
         "name": "answer_survey",
         "description": "Answer multiple survey questions at once.",
         "parameters": {
-                "type":"object",
-                "properties": {
-                    **{q["key"]: {"type":"string", "enum": q["options"]} for q in questions}
-                },
-                "required": [q["key"] for q in questions]
+            "type":"object",
+            "properties": {
+                **{q["key"]: {"type":"string", "enum": q["options"]} for q in questions}
+            },
+            "required": [q["key"] for q in questions]
         }
     }
 
@@ -304,18 +299,34 @@ with tab_results:
             scores = run_survey(personas, questions, segment)
 
         st.title("Synthetic Survey Results")
+        st.caption(f"Total respondents: {len(personas)}")
 
         # Per-question charts & tables with extra spacing
         for q in questions:
-            dist   = Counter(scores[q["key"]])
-            opts   = q["options"]
-            counts = [dist.get(o, 0) for o in opts]   # only canonical options
-            perc   = pct_1dp_sum_100(counts)
+            dist   = Counter(scores[q["key"]])           # includes None/invalid as keys
+            opts   = list(q["options"])                  # copy for safe mutation
+
+            # valid option counts
+            valid_counts = [dist.get(o, 0) for o in opts]
+            valid_total  = sum(valid_counts)
+
+            # anything not matching the canonical options gets bucketed as "No response"
+            all_total = sum(dist.values())               # should equal len(personas)
+            no_resp   = all_total - valid_total
+            if no_resp > 0:
+                opts_display   = opts + ["No response"]
+                counts_display = valid_counts + [no_resp]
+            else:
+                opts_display   = opts
+                counts_display = valid_counts
+
+            # one-decimal percentages summing to 100.0
+            perc_display = pct_1dp_sum_100(counts_display)
 
             df = pd.DataFrame({
-                "Option":  opts,
-                "Count":   counts,
-                "Percent": perc,   # one-decimal, sums to 100.0
+                "Option":  opts_display,
+                "Count":   counts_display,
+                "Percent": perc_display,
             })
 
             st.header(q["user"])
@@ -323,11 +334,11 @@ with tab_results:
                 alt.Chart(df)
                    .mark_bar()
                    .encode(
-                       x=alt.X("Option:N", sort=opts),
+                       x=alt.X("Option:N", sort=opts_display),
                        y="Count:Q",
                        tooltip=["Option","Count","Percent"]
                    )
-                   .properties(width=600, height=300)
+                   .properties(height=360)               # bigger, responsive width
             )
             st.altair_chart(chart, use_container_width=True)
             st.table(df.set_index("Option"))
@@ -340,16 +351,24 @@ with tab_results:
         for p in personas:
             st.markdown(f"**{p.get('name','')}**: {p.get('intro','')}")
 
-        # Key Findings via LLM (use same percent logic as the table)
+        # Key Findings via LLM (mirror the same counting, including 'No response' if any)
         stats = {}
         for q in questions:
-            opts   = q["options"]
             dist   = Counter(scores[q["key"]])
-            counts = [dist.get(o, 0) for o in opts]
-            perc   = pct_1dp_sum_100(counts)
+            opts   = list(q["options"])
+            valid_counts = [dist.get(o, 0) for o in opts]
+            valid_total  = sum(valid_counts)
+            all_total    = sum(dist.values())
+            no_resp      = all_total - valid_total
+
+            opts_stats   = opts + (["No response"] if no_resp > 0 else [])
+            counts_stats = valid_counts + ([no_resp] if no_resp > 0 else [])
+            perc_stats   = pct_1dp_sum_100(counts_stats)
+
             stats[q["key"]] = {
-                "counts":      dict(zip(opts, counts)),
-                "percentages": dict(zip(opts, perc)),
+                "counts":      dict(zip(opts_stats, counts_stats)),
+                "percentages": dict(zip(opts_stats, perc_stats)),
+                "total":       all_total
             }
 
         personas_json = json.dumps(personas, indent=2)
