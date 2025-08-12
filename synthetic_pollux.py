@@ -12,6 +12,22 @@ import openai
 st.set_page_config(page_title="Synthetic Survey Engine", layout="wide")
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# —— Helper: 1-dp percentages that sum to exactly 100.0 ——
+def pct_1dp_sum_100(counts):
+    total = sum(counts)
+    if total == 0:
+        return [0.0] * len(counts)
+    raw = [c * 100.0 / total for c in counts]
+    # floor to 0.1 to avoid overshooting 100 after rounding
+    rounded = [int(x * 10) / 10 for x in raw]
+    shortfall = round(100.0 - sum(rounded), 1)
+    if shortfall > 0:
+        # distribute +0.1 to the largest fractional remainders first
+        order = sorted(range(len(raw)), key=lambda i: raw[i] - rounded[i], reverse=True)
+        for i in order[:int(shortfall * 10)]:
+            rounded[i] = round(rounded[i] + 0.1, 1)
+    return [round(x, 1) for x in rounded]
+
 # ——— 1) Password gate ——————————————————————————
 PASSWORD = st.secrets.get("password")
 if PASSWORD is None:
@@ -57,22 +73,22 @@ if "persona_fields" not in st.session_state:
 if "questions" not in st.session_state:
     st.session_state.questions = [
         {
-            "key": "DNA: Purpose Alignment",
-            "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "Our organization's AI initiatives are clearly tied to our core purpose and values.",
-            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
+            "key": "accessibility",
+            "system": "Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.",
+            "user": "Is Pepsi easily accessible?",
+            "options": ["Yes", "No"],
         },
         {
-            "key": "Soul: Trust in AI",
+            "key": "interest",
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "I trust the outcomes produced by our AI systems.",
-            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
+            "user": "At what time would you drink soda?",
+            "options": ["Morning", "Afternoon", "Evening"],
         },
         {
-            "key": "Mind: Skill Readiness",
+            "key": "timeline",
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "Employees at my organization have the right skills to work effectively with generative AI.",
-            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
+            "user": "How often do you drink soda?",
+            "options": ["Frequently", "Occasionally", "Rarely", "Never"],
         },
     ]
 
@@ -88,20 +104,20 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
 st.sidebar.header("Key Inputs")
 industry = st.sidebar.text_input(
     "Industry/Product Name",
-    value="All Industries"
+    value="Pepsi"
 )
 segment = st.sidebar.text_input(
     "Persona Segment (optional)",
-    value="Company Executives",
+    value="Health Buffs",
     help="Specify an optional subgroup label to guide persona generation (e.g., 'Health Buffs')."
 )
 n_personas = st.sidebar.number_input(
-    "Number of respondents",
+    "Number of personas",
     min_value=5,
     max_value=50,
     value=10,
     step=5,
-    help="How many synthetic respondents to generate for the survey (between 5 and 50)."
+    help="How many synthetic personas to generate for the survey (between 5 and 50)."
 )
 run_button = st.sidebar.button("Run survey")
 if run_button:
@@ -268,7 +284,7 @@ def run_survey(personas, questions, segment):
 
     return scores
 
-# ——— 10) Results tab ————————————————————————————
+# ——— 10) Results tab ————————————————————————————
 with tab_results:
     if run_button:
         schema     = build_persona_schema(st.session_state.persona_fields)
@@ -280,22 +296,26 @@ with tab_results:
             scores = run_survey(personas, questions, segment)
 
         st.title("Synthetic Survey Results")
-        total = len(personas)
 
-        # Per-question charts & tables with extra spacing
+        # Per-question charts & tables
         for q in questions:
-            dist = Counter(scores[q["key"]])
+            dist   = Counter(scores[q["key"]])
+            opts   = q["options"]
+            counts = [dist.get(o, 0) for o in opts]  # only canonical options
+            perc   = pct_1dp_sum_100(counts)
+
             df = pd.DataFrame({
-                "Option":  q["options"],
-                "Count":   [dist.get(o,0) for o in q["options"]],
-                "Percent": [round(dist.get(o,0)/total*100,1) for o in q["options"]],
+                "Option":  opts,
+                "Count":   counts,
+                "Percent": perc,  # e.g., 22.4
             })
+
             st.header(q["user"])
             chart = (
                 alt.Chart(df)
                    .mark_bar()
                    .encode(
-                       x=alt.X("Option:N", sort=q["options"]),
+                       x=alt.X("Option:N", sort=opts),
                        y="Count:Q",
                        tooltip=["Option","Count","Percent"]
                    )
@@ -306,20 +326,22 @@ with tab_results:
             st.write("")  # extra spacing
 
         # Personas & intros
-        st.header("Synthetic Respondents")
+        st.header("Generated Personas")
         st.dataframe(pd.DataFrame(personas))
-        st.header("Respondent Intros")
+        st.header("Persona Intros")
         for p in personas:
             st.markdown(f"**{p.get('name','')}**: {p.get('intro','')}")
 
-        # Key Findings via LLM
+        # Key Findings via LLM (uses the same percent logic as the table)
         stats = {}
         for q in questions:
-            opts = q["options"]
-            dist = Counter(scores[q["key"]])
+            opts   = q["options"]
+            dist   = Counter(scores[q["key"]])
+            counts = [dist.get(o, 0) for o in opts]
+            perc   = pct_1dp_sum_100(counts)
             stats[q["key"]] = {
-                "counts":      {o: dist.get(o,0) for o in opts},
-                "percentages": {o: round(dist.get(o,0)/total*100,1) for o in opts}
+                "counts":      dict(zip(opts, counts)),
+                "percentages": dict(zip(opts, perc)),
             }
 
         personas_json = json.dumps(personas, indent=2)
