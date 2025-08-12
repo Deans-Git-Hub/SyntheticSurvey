@@ -57,21 +57,21 @@ if "persona_fields" not in st.session_state:
 if "questions" not in st.session_state:
     st.session_state.questions = [
         {
-            "key": "accessibility",
-            "system": "Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "Is Pepsi easily accessible?",
-            "options": ["Yes", "No"],
+            "key": "DNA: Purpose Alignment",
+            "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
+            "user": "Our organization's AI initiatives are clearly tied to our core purpose and values.",
+            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
         },
         {
-            "key": "interest",
+            "key": "Soul: Trust in AI",
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "At what time would you drink soda?",
-            "options": ["Morning", "Afternoon", "Evening"],
+            "user": "I trust the outcomes produced by our AI systems.",
+            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
         },
         {
-            "key": "timeline",
+            "key": "Mind: Skill Readiness",
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "How often do you drink soda?",
+            "user": "Employees at my organization have the right skills to work effectively with generative AI.",
             "options": ["Frequently", "Occasionally", "Rarely", "Never"],
         },
     ]
@@ -88,20 +88,20 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
 st.sidebar.header("Key Inputs")
 industry = st.sidebar.text_input(
     "Industry/Product Name",
-    value="Pepsi"
+    value="All Industries"
 )
 segment = st.sidebar.text_input(
     "Persona Segment (optional)",
-    value="Health Buffs",
+    value="Company Executives",
     help="Specify an optional subgroup label to guide persona generation (e.g., 'Health Buffs')."
 )
 n_personas = st.sidebar.number_input(
-    "Number of personas",
+    "Number of respondents",
     min_value=5,
     max_value=50,
     value=10,
     step=5,
-    help="How many synthetic personas to generate for the survey (between 5 and 50)."
+    help="How many synthetic respondents to generate for the survey (between 5 and 50)."
 )
 run_button = st.sidebar.button("Run survey")
 if run_button:
