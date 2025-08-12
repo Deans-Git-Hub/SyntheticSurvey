@@ -18,7 +18,7 @@ def pct_1dp_sum_100(counts):
     if total == 0:
         return [0.0] * len(counts)
     raw = [c * 100.0 / total for c in counts]
-    # floor to 0.1 to avoid overshooting 100 after rounding
+    # floor to 0.1 to avoid overshooting after rounding
     rounded = [int(x * 10) / 10 for x in raw]
     shortfall = round(100.0 - sum(rounded), 1)
     if shortfall > 0:
@@ -73,22 +73,30 @@ if "persona_fields" not in st.session_state:
 if "questions" not in st.session_state:
     st.session_state.questions = [
         {
-            "key": "accessibility",
-            "system": "Answer Yes or No exactly. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "Is Pepsi easily accessible?",
-            "options": ["Yes", "No"],
+            "key": "DNA: Purpose Alignment",
+            "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
+            "user": "Our organization's AI initiatives are clearly tied to our core purpose and values.",
+            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
         },
         {
-            "key": "interest",
+
+            "key": "Mind: Skill Readiness",
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "At what time would you drink soda?",
-            "options": ["Morning", "Afternoon", "Evening"],
+            "user": "Employees at my organization have the right skills to work effectively with generative AI.",
+            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
         },
         {
-            "key": "timeline",
+            "key": "Body: Operational Support",
+            "system": "Choose one option. Deeply consider the choices and pick the one that best aligns with you as a persona.",
+            "user": "We have the right tools and processes in place to operationalize AI at scale.",
+            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
+        },
+        {
+            "key": "Soul: Trust in AI",
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "How often do you drink soda?",
-            "options": ["Frequently", "Occasionally", "Rarely", "Never"],
+            "user": "I trust the outcomes produced by our AI systems.",
+            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"]
+
         },
     ]
 
@@ -104,20 +112,20 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
 st.sidebar.header("Key Inputs")
 industry = st.sidebar.text_input(
     "Industry/Product Name",
-    value="Pepsi"
+    value="All Industries"
 )
 segment = st.sidebar.text_input(
     "Persona Segment (optional)",
-    value="Health Buffs",
+    value="Company Executives",
     help="Specify an optional subgroup label to guide persona generation (e.g., 'Health Buffs')."
 )
 n_personas = st.sidebar.number_input(
-    "Number of personas",
+    "Number of respondents",
     min_value=5,
     max_value=50,
     value=10,
     step=5,
-    help="How many synthetic personas to generate for the survey (between 5 and 50)."
+    help="How many synthetic respondents to generate for the survey (between 5 and 50)."
 )
 run_button = st.sidebar.button("Run survey")
 if run_button:
@@ -246,11 +254,11 @@ def make_batch_fn(questions):
         "name": "answer_survey",
         "description": "Answer multiple survey questions at once.",
         "parameters": {
-            "type":"object",
-            "properties": {
-                **{q["key"]: {"type":"string", "enum": q["options"]} for q in questions}
-            },
-            "required": [q["key"] for q in questions]
+                "type":"object",
+                "properties": {
+                    **{q["key"]: {"type":"string", "enum": q["options"]} for q in questions}
+                },
+                "required": [q["key"] for q in questions]
         }
     }
 
@@ -297,17 +305,17 @@ with tab_results:
 
         st.title("Synthetic Survey Results")
 
-        # Per-question charts & tables
+        # Per-question charts & tables with extra spacing
         for q in questions:
             dist   = Counter(scores[q["key"]])
             opts   = q["options"]
-            counts = [dist.get(o, 0) for o in opts]  # only canonical options
+            counts = [dist.get(o, 0) for o in opts]   # only canonical options
             perc   = pct_1dp_sum_100(counts)
 
             df = pd.DataFrame({
                 "Option":  opts,
                 "Count":   counts,
-                "Percent": perc,  # e.g., 22.4
+                "Percent": perc,   # one-decimal, sums to 100.0
             })
 
             st.header(q["user"])
@@ -326,13 +334,13 @@ with tab_results:
             st.write("")  # extra spacing
 
         # Personas & intros
-        st.header("Generated Personas")
+        st.header("Synthetic Respondents")
         st.dataframe(pd.DataFrame(personas))
-        st.header("Persona Intros")
+        st.header("Respondent Intros")
         for p in personas:
             st.markdown(f"**{p.get('name','')}**: {p.get('intro','')}")
 
-        # Key Findings via LLM (uses the same percent logic as the table)
+        # Key Findings via LLM (use same percent logic as the table)
         stats = {}
         for q in questions:
             opts   = q["options"]
