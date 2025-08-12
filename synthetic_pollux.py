@@ -26,6 +26,16 @@ def pct_1dp_sum_100(counts):
             rounded[i] = round(rounded[i] + 0.1, 1)
     return [round(x, 1) for x in rounded]
 
+# —— Helper: coerce model output to a valid enum (case/whitespace tolerant) ——
+def coerce_to_enum(value, options):
+    if value is None:
+        return None
+    s = str(value).strip().lower()
+    for o in options:
+        if s == o.strip().lower():
+            return o  # return canonical casing from options
+    return None
+
 # ——— 1) Password gate ——————————————————————————
 PASSWORD = st.secrets.get("password")
 if PASSWORD is None:
@@ -250,9 +260,7 @@ def make_batch_fn(questions):
         "description": "Answer multiple survey questions at once.",
         "parameters": {
             "type":"object",
-            "properties": {
-                **{q["key"]: {"type":"string", "enum": q["options"]} for q in questions}
-            },
+            "properties": {**{q["key"]: {"type":"string", "enum": q["options"]} for q in questions}},
             "required": [q["key"] for q in questions]
         }
     }
@@ -265,25 +273,60 @@ def run_survey(personas, questions, segment):
     scores   = {q["key"]: [] for q in qlist}
     batch_fn = make_batch_fn(qlist)
 
-    def ask_persona(p):
+    def ask_persona(p, max_retries=2):
+        # Build persona context
         lines = [f"{f['name'].capitalize()}: {p.get(f['name'], '')}" for f in fields]
         if segment:
             lines.append(f"Segment: {segment}")
         base = {"role":"system", "content":"You are this persona:\n" + "\n".join(lines)}
 
-        messages = [base] + [{"role":"system","content":q["system"]} for q in qlist]
+        # Guardrails to maximise valid, on-enum answers
+        guard = {
+            "role": "system",
+            "content": (
+                "You must answer every question. "
+                "Select exactly one option for each key, using the options exactly as written."
+            )
+        }
+
+        # Compose the question list once
+        q_systems = [{"role":"system","content":q["system"]} for q in qlist]
         user_text = "\n".join(f"{i+1}. {q['user']}" for i, q in enumerate(qlist))
-        messages.append({"role":"user", "content": user_text})
+        user_msg  = {"role":"user", "content": user_text}
 
-        resp    = call_chat(messages, fn=batch_fn, fn_name="answer_survey")
-        return json.loads(resp.function_call.arguments)
+        attempt = 0
+        while True:
+            attempt += 1
+            messages = [base, guard] + q_systems + [user_msg]
+            resp = call_chat(messages, fn=batch_fn, fn_name="answer_survey", temp=0.3)
+            raw = json.loads(resp.function_call.arguments)
 
+            # Coerce & validate
+            fixed = {}
+            all_valid = True
+            for q in qlist:
+                val = coerce_to_enum(raw.get(q["key"]), q["options"])
+                if val is None:
+                    all_valid = False
+                    break
+                fixed[q["key"]] = val
+
+            if all_valid or attempt > max_retries:
+                return fixed if all_valid else {
+                    # final fallback: replace any remaining invalid with the first option
+                    q["key"]: fixed.get(q["key"], q["options"][0]) for q in qlist
+                }
+
+        # (unreachable)
+        # return fixed
+
+    # Parallel execution
     with ThreadPoolExecutor(max_workers=min(10, len(personas))) as exe:
         futures = {exe.submit(ask_persona, p): idx for idx, p in enumerate(personas)}
         for fut in as_completed(futures):
             answers = fut.result()
             for q in qlist:
-                scores[q["key"]].append(answers.get(q["key"]))
+                scores[q["key"]].append(answers[q["key"]])  # guaranteed valid
 
     return scores
 
@@ -301,32 +344,17 @@ with tab_results:
         st.title("Synthetic Survey Results")
         st.caption(f"Total respondents: {len(personas)}")
 
-        # Per-question charts & tables with extra spacing
+        # Per-question charts & tables (larger charts)
         for q in questions:
-            dist   = Counter(scores[q["key"]])           # includes None/invalid as keys
-            opts   = list(q["options"])                  # copy for safe mutation
-
-            # valid option counts
-            valid_counts = [dist.get(o, 0) for o in opts]
-            valid_total  = sum(valid_counts)
-
-            # anything not matching the canonical options gets bucketed as "No response"
-            all_total = sum(dist.values())               # should equal len(personas)
-            no_resp   = all_total - valid_total
-            if no_resp > 0:
-                opts_display   = opts + ["No response"]
-                counts_display = valid_counts + [no_resp]
-            else:
-                opts_display   = opts
-                counts_display = valid_counts
-
-            # one-decimal percentages summing to 100.0
-            perc_display = pct_1dp_sum_100(counts_display)
+            dist   = Counter(scores[q["key"]])     # now only valid options exist
+            opts   = q["options"]
+            counts = [dist.get(o, 0) for o in opts]
+            perc   = pct_1dp_sum_100(counts)
 
             df = pd.DataFrame({
-                "Option":  opts_display,
-                "Count":   counts_display,
-                "Percent": perc_display,
+                "Option":  opts,
+                "Count":   counts,
+                "Percent": perc,
             })
 
             st.header(q["user"])
@@ -334,15 +362,15 @@ with tab_results:
                 alt.Chart(df)
                    .mark_bar()
                    .encode(
-                       x=alt.X("Option:N", sort=opts_display),
+                       x=alt.X("Option:N", sort=opts),
                        y="Count:Q",
                        tooltip=["Option","Count","Percent"]
                    )
-                   .properties(height=360)               # bigger, responsive width
+                   .properties(height=360)
             )
             st.altair_chart(chart, use_container_width=True)
             st.table(df.set_index("Option"))
-            st.write("")  # extra spacing
+            st.write("")
 
         # Personas & intros
         st.header("Synthetic Respondents")
@@ -351,24 +379,17 @@ with tab_results:
         for p in personas:
             st.markdown(f"**{p.get('name','')}**: {p.get('intro','')}")
 
-        # Key Findings via LLM (mirror the same counting, including 'No response' if any)
+        # Key Findings via LLM (uses same counts/perc)
         stats = {}
         for q in questions:
             dist   = Counter(scores[q["key"]])
-            opts   = list(q["options"])
-            valid_counts = [dist.get(o, 0) for o in opts]
-            valid_total  = sum(valid_counts)
-            all_total    = sum(dist.values())
-            no_resp      = all_total - valid_total
-
-            opts_stats   = opts + (["No response"] if no_resp > 0 else [])
-            counts_stats = valid_counts + ([no_resp] if no_resp > 0 else [])
-            perc_stats   = pct_1dp_sum_100(counts_stats)
-
+            opts   = q["options"]
+            counts = [dist.get(o, 0) for o in opts]
+            perc   = pct_1dp_sum_100(counts)
             stats[q["key"]] = {
-                "counts":      dict(zip(opts_stats, counts_stats)),
-                "percentages": dict(zip(opts_stats, perc_stats)),
-                "total":       all_total
+                "counts":      dict(zip(opts, counts)),
+                "percentages": dict(zip(opts, perc)),
+                "total":       sum(counts)
             }
 
         personas_json = json.dumps(personas, indent=2)
