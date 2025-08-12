@@ -298,7 +298,7 @@ def run_survey(personas, questions, segment):
         while True:
             attempt += 1
             messages = [base, guard] + q_systems + [user_msg]
-            resp = call_chat(messages, fn=batch_fn, fn_name="answer_survey", temp=0.3)
+            resp = call_chat(messages, fn=batch_fn, fn_name="answer_survey", temp=1)
             raw = json.loads(resp.function_call.arguments)
 
             # Coerce & validate
