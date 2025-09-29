@@ -81,28 +81,28 @@ if "persona_fields" not in st.session_state:
 if "questions" not in st.session_state:
     st.session_state.questions = [
         {
-            "key": "DNA: Purpose Alignment",
+            "key": "Pricing",
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "Our organization's AI initiatives are clearly tied to our core purpose and values.",
-            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
+            "user": "What is your perception of shoe prices in the last 5 years?",
+            "options": ["Better, Worse"],
         },
         {
-            "key": "Mind: Skill Readiness",
+            "key": "Price Sensitivty",
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "Employees at my organization have the right skills to work effectively with generative AI.",
-            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
+            "user": "Given a 25% to 30% price increase, would you buy cheaper brands?",
+            "options": ["Extremely likely, Likely, Neutral, Unlikely, Extremely unlikely"],
         },
         {
-            "key": "Body: Operational Support",
+            "key": "Price Sensitivity",
             "system": "Choose one option. Deeply consider the choices and pick the one that best aligns with you as a persona.",
-            "user": "We have the right tools and processes in place to operationalize AI at scale.",
-            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"],
+            "user": "3. Given a 25% to 30% price increase, would you increase total spend to buy all items you want?",
+            "options": ["Extremely likely, Likely, Neutral, Unlikely, Extremely unlikely"],
         },
         {
-            "key": "Soul: Trust in AI",
+            "key": "Retailer Preference",
             "system": "Choose one option. Deeply consider the choices and choose the one that best aligns with you as a person.",
-            "user": "I trust the outcomes produced by our AI systems.",
-            "options": ["Strongly agree","Agree","Neutral","Disagree","Strongly disagree"]
+            "user": "What type of retailer do you shop at for back-to-school purchases?",
+            "options": ["Mass market, Specialty, Branded store or website, Discount/off-price"]
         },
     ]
 
@@ -118,11 +118,11 @@ def call_chat(messages, fn=None, fn_name=None, temp=1.0):
 st.sidebar.header("Key Inputs")
 industry = st.sidebar.text_input(
     "Industry/Product Name",
-    value="All Industries"
+    value="Retail"
 )
 segment = st.sidebar.text_input(
     "Persona Segment (optional)",
-    value="Company Executives",
+    value="Parents buying kids' shoes for back-to-school",
     help="Specify an optional subgroup label to guide persona generation (e.g., 'Health Buffs')."
 )
 n_personas = st.sidebar.number_input(
