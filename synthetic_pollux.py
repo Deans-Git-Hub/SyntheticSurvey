@@ -95,7 +95,7 @@ if "questions" not in st.session_state:
         {
             "key": "Price Sensitivity",
             "system": "Choose one option. Deeply consider the choices and pick the one that best aligns with you as a persona.",
-            "user": "3. Given a 25% to 30% price increase, would you increase total spend to buy all items you want?",
+            "user": "Given a 25% to 30% price increase, would you increase total spend to buy all items you want?",
             "options": ["Extremely likely, Likely, Neutral, Unlikely, Extremely unlikely"],
         },
         {
